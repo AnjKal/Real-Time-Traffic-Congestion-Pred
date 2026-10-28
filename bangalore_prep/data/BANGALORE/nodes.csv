@@ -1,0 +1,17 @@
+node_id,name,area,road,lat,lon,geocode_note
+n01,Hosur Road (Electronic City),Electronic City,Hosur Road,12.8790739,77.6460141,"OSM: Hosur Road, Wellington Paradise Layout, Singasandra, Bengaluru South City Corporation, Bengaluru, Bangalore South, Benga"
+n02,Silk Board Junction (Electronic City),Electronic City,Silk Board Junction,12.9159792,77.623947,"OSM: Silk Board Junction, Srinagar - Kanyakumari Highway, MCHS Colony, HSR Layout, Bengaluru South City Corporation, Bengalur"
+n03,Ballari Road (Hebbal),Hebbal,Ballari Road,13.1932506,77.649046,"OSM: Ballari Road, Shettigere, Minakunte Hosuru, Yelahanka taluku, Bengaluru Urban, Karnataka, 562157, India"
+n04,Hebbal Flyover (Hebbal),Hebbal,Hebbal Flyover,13.041662,77.5899438,"OSM: Hebbal Flyover, Bhoopasandra, Bengaluru North City Corporation, Bengaluru, Bangalore North, Bengaluru Urban, Karnataka, "
+n05,100 Feet Road (Indiranagar),Indiranagar,100 Feet Road,12.9751791,77.6410743,"OSM: 100 Feet Road, Defence Colony, Indiranagar, Bengaluru Central City Corporation, Bengaluru, Bangalore North, Bengaluru Ur"
+n06,CMH Road (Indiranagar),Indiranagar,CMH Road,12.9785334,77.6437489,"OSM: Chinmaya Mission Hospital Road, Subedar Garden, Thippasandra, Indiranagar, Bengaluru Central City Corporation, Bengaluru"
+n07,Jayanagar 4th Block (Jayanagar),Jayanagar,Jayanagar 4th Block,12.928559,77.5823467,"OSM: Union Bank of India, 7th B Main Road, Geetha Colony, Jayanagar 4th Block, Tilak Nagara, Bengaluru South City Corporation"
+n08,South End Circle (Jayanagar),Jayanagar,South End Circle,12.9358102,77.5801653,"OSM: South End Circle, Rashtriya Vidyalaya Road, Yediyuru, Bengaluru West City Corporation, Bengaluru, Bangalore North, Benga"
+n09,Sarjapur Road (Koramangala),Koramangala,Sarjapur Road,12.9246491,77.6382779,"OSM: Sarjapur Road, SHBCS Layout, Kormangala East, Bengaluru South City Corporation, Bengaluru, Bangalore South, Bengaluru Ur"
+n10,Sony World Junction (Koramangala),Koramangala,Sony World Junction,12.9373693,77.6271,NOT FOUND - type lat/lon by hand
+n11,Anil Kumble Circle (M.G. Road),M.G. Road,Anil Kumble Circle,12.9765243,77.6018241,"OSM: Anil Kumble Circle, Mahatma Gandhi Road, Shanthala Nagar, Ashokanagar, Bengaluru Central City Corporation, Bengaluru, Ba"
+n12,Trinity Circle (M.G. Road),M.G. Road,Trinity Circle,12.972629,77.6197459,"OSM: Trinity Circle, Mahatma Gandhi Road, Hanumanthappa Layout, K Kamaraj Ward, Bengaluru Central City Corporation, Bengaluru"
+n13,ITPL Main Road (Whitefield),Whitefield,ITPL Main Road,12.9613216,77.7165663,"OSM: Kundalahalli Main Road, AECS Layout B Block, Brookefield, Priyadarshini Ward, Bengaluru East City Corporation, Bengaluru"
+n14,Marathahalli Bridge (Whitefield),Whitefield,Marathahalli Bridge,12.9567046,77.7046424,"OSM: Marathahalli Bridge, Marathalli Bridge Service Road, Chinnappanahalli, AECS Layout, Priyadarshini Ward, Bengaluru East C"
+n15,Tumkur Road (Yeshwanthpur),Yeshwanthpur,Tumkur Road,13.0464357,77.5033901,"OSM: Tumkur Road, Rukmini Nagara, Nagasandra, Bengaluru West City Corporation, Bengaluru, Bangalore North, Bengaluru Urban, K"
+n16,Yeshwanthpur Circle (Yeshwanthpur),Yeshwanthpur,Yeshwanthpur Circle,13.0232,77.5499,NOT FOUND - type lat/lon by hand
