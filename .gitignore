@@ -101,3 +101,6 @@ ENV/
 
 # pycharm
 .idea/
+
+.bangalore_prep/data/BANGALORE/bangalore_drive.graphml
+.data/METR-LA/train.npz
