@@ -104,3 +104,7 @@ ENV/
 
 .bangalore_prep/data/BANGALORE/bangalore_drive.graphml
 .data/METR-LA/train.npz
+.bangalore_prep/data/BANGALORE/test.npz
+.bangalore_prep/data/BANGALORE/train.npz
+.bangalore_prep/data/BANGALORE/val.npz
+.data/METR-LA
