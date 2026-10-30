@@ -1,0 +1,16 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+venv/
+data/raw/
+data/processed/
+logs/
+checkpoints/
+.ipynb_checkpoints/
+.pytest_cache/
+.ruff_cache/
+cache/
+kaggle/bangalore_dcrnn_bundle/
+kaggle/*.zip
+data/graph/bangalore_drive_core.pkl

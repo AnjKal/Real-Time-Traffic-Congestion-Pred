@@ -1,0 +1,21 @@
+node_id,name,lat,lon,frc,free_flow_speed_kmh
+0,Hebbal Flyover,13.0355,77.597,FRC4,33
+1,Mekhri Circle,13.021,77.582,FRC4,48
+2,Yeshwanthpur Circle,13.028,77.541,FRC4,20
+3,Majestic,12.9774,77.5713,FRC4,25
+4,M.G. Road Trinity,12.9756,77.605,FRC2,26
+5,Richmond Circle,12.9627,77.595,FRC4,24
+6,Shivajinagar,12.985,77.605,FRC3,28
+7,Indiranagar 100Ft,12.9719,77.6412,FRC2,21
+8,Domlur Flyover,12.9611,77.6387,FRC2,35
+9,Koramangala Sony,12.9352,77.6245,FRC2,32
+10,Silk Board,12.9165,77.622,FRC2,21
+11,BTM Layout,12.9166,77.6101,FRC4,56
+12,Jayanagar 4th Block,12.925,77.5938,FRC4,28
+13,Marathahalli Bridge,12.9583,77.6975,FRC2,35
+14,Bellandur,12.934,77.678,FRC4,28
+15,ORR Sarjapur,12.928,77.688,FRC2,27
+16,HSR Agara,12.915,77.638,FRC1,43
+17,KR Puram,12.9981,77.695,FRC3,30
+18,Tin Factory,12.9975,77.676,FRC1,29
+19,Whitefield ITPL,12.9698,77.75,FRC2,31

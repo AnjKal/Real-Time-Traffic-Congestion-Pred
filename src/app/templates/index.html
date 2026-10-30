@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bangalore DCRNN Route Congestion Forecast</title>
+  {{ header|safe }}
+  <style>
+    html, body { height: auto; font-family: -apple-system, "Segoe UI", sans-serif; color: #222; }
+    main { max-width: 1150px; margin: 0 auto; padding: 16px; }
+    h1 { font-size: 1.5rem; margin: 0 0 4px; }
+    #status { color: #555; margin-bottom: 4px; }
+    #warnings { color: #b9770e; background: #fef5e7; border-radius: 6px; padding: 6px 10px; display: none; margin: 8px 0; }
+    #error { color: #922b21; background: #fdedec; border-radius: 6px; padding: 6px 10px; display: none; margin: 8px 0; }
+    .row { margin: 10px 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    button { border: 1px solid #888; background: #fff; border-radius: 6px; padding: 6px 12px; font-size: 14px; cursor: pointer; }
+    button.active { background: #1f618d; color: #fff; border-color: #1f618d; }
+    button.go { background: #27ae60; color: #fff; border-color: #27ae60; font-weight: 600; }
+    button:disabled { opacity: .5; cursor: wait; }
+    #map-box { height: 60vh; min-height: 420px; border: 1px solid #aaa; border-radius: 6px; overflow: hidden; }
+    .card { border: 1px solid #ccc; border-radius: 6px; padding: 8px 12px; margin: 6px 0; cursor: pointer; }
+    .card.sel { border-color: #1f618d; box-shadow: 0 0 0 2px #1f618d33; }
+    .muted { color: #777; font-size: 13px; }
+    .bar { display: inline-block; height: 10px; vertical-align: middle; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Bangalore DCRNN &mdash; Route Congestion Forecast</h1>
+  <div id="status">Loading forecast&hellip;</div>
+  <div id="warnings"></div>
+  <div id="error"></div>
+
+  <div class="row" id="horizons">
+    Horizon:
+    <button data-h="5" class="active">+5 min</button>
+    <button data-h="10">+10 min</button>
+    <button data-h="20">+20 min</button>
+  </div>
+
+  <div class="row" id="presets">One-click presets: <span class="muted">loading&hellip;</span></div>
+
+  <div class="row">
+    Or click two points on the map:
+    <span>Source: <b id="src-text">(click map to set)</b></span>
+    <span>Destination: <b id="dst-text">(click map again)</b></span>
+    <button class="go" id="compute">Compute Routes</button>
+    <button id="clear">Clear</button>
+  </div>
+
+  <div id="map-box">{{ html|safe }}</div>
+
+  <div class="row">
+    Legend:
+    <span>&#128994; Free</span><span>&#128993; Moderate</span><span>&#128308; Heavy</span>
+    <span class="muted">Colours come from the nearest of 20 sensors (the big circles); dashed = far from any sensor (&gt;2.5 km).</span>
+  </div>
+
+  <div id="summary"></div>
+
+  <div><a id="gmaps" href="{{ google_maps_url }}" target="_blank" rel="noopener">Open Google Maps traffic layer for this corridor</a></div>
+</main>
+
+<script>{{ script|safe }}</script>
+<script>
+  const NODE_VARS = {{ node_vars|tojson }};
+  const MAP_VAR = {{ map_var|tojson }};
+  const GMAPS_DEFAULT = {{ google_maps_url|tojson }};
+  const REFRESH_MS = 180000;                       // 3 minutes
+  const map = window[MAP_VAR];
+
+  let horizon = 5, madeAt = null, src = null, dst = null, nextClick = "src";
+  let srcMarker = null, dstMarker = null, routeData = null, selectedRank = 1, drawn = [];
+
+  const el = id => document.getElementById(id);
+  const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const fmt = p => `${p.lat.toFixed(4)}, ${p.lon.toFixed(4)}`;
+
+  function showBox(id, lines) {
+    const box = el(id);
+    box.style.display = lines.length ? "block" : "none";
+    box.innerHTML = lines.map(esc).join("<br>");
+  }
+  function renderStatus() {
+    if (!madeAt) return;
+    const p = n => String(n).padStart(2, "0");
+    const min = Math.max(0, Math.round((Date.now() - madeAt.getTime()) / 60000));
+    el("status").textContent =
+      `Forecast made at: ${madeAt.getFullYear()}-${p(madeAt.getMonth()+1)}-${p(madeAt.getDate())} ` +
+      `${p(madeAt.getHours())}:${p(madeAt.getMinutes())} (${min <= 0 ? "just now" : min + " min ago"})` +
+      ` - horizon +${horizon} min`;
+  }
+
+  // ---------------------------------------------------------------- sensors
+  function paintSensors(data) {
+    for (const n of data.nodes) {
+      const layer = window[NODE_VARS[n.node_id]];
+      if (!layer) continue;
+      layer.setStyle({ fillColor: n.color, fillOpacity: 0.55 });
+      layer.setTooltipContent(`<b>${esc(n.name)}</b><br>now ${n.current_kmh.toFixed(0)} km/h &rarr; ` +
+        `+${data.horizon_min} min ${n.pred_kmh.toFixed(0)} km/h<br>${n.band}`);
+    }
+  }
+  async function refreshSensors() {
+    try {
+      const r = await fetch(`/api/predict?horizon=${horizon}`);
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.detail || r.statusText);
+      madeAt = new Date(data.forecast_made_at);
+      paintSensors(data); renderStatus(); showBox("warnings", data.warnings || []);
+      return true;
+    } catch (e) { showBox("error", [`Could not load forecast: ${e.message}`]); return false; }
+  }
+
+  // ---------------------------------------------------------------- points
+  function setPoint(kind, p) {
+    const isSrc = kind === "src";
+    if (isSrc) src = p; else dst = p;
+    const style = { radius: 9, color: "#fff", weight: 2, fillOpacity: 1,
+                    fillColor: isSrc ? "#27ae60" : "#c0392b", bubblingMouseEvents: false };
+    const old = isSrc ? srcMarker : dstMarker;
+    if (old) map.removeLayer(old);
+    const m = L.circleMarker([p.lat, p.lon], style).addTo(map)
+      .bindTooltip(isSrc ? "Source" : "Destination", { permanent: true, direction: "top" });
+    if (isSrc) srcMarker = m; else dstMarker = m;
+    el(isSrc ? "src-text" : "dst-text").textContent = fmt(p);
+    updateGoogleLink();
+  }
+  function updateGoogleLink() {
+    if (!src || !dst) { el("gmaps").href = GMAPS_DEFAULT; return; }
+    el("gmaps").href = `https://www.google.com/maps/dir/${src.lat},${src.lon}/${dst.lat},${dst.lon}` +
+      `/@${(src.lat + dst.lat) / 2},${(src.lon + dst.lon) / 2},12z/data=!5m1!1e1`;
+  }
+  map.on("click", e => {
+    setPoint(nextClick, { lat: e.latlng.lat, lon: e.latlng.lng });
+    nextClick = nextClick === "src" ? "dst" : "src";
+  });
+
+  // ---------------------------------------------------------------- routes
+  function clearRoutes() {
+    drawn.forEach(g => g.lines.forEach(l => map.removeLayer(l)));
+    drawn = []; routeData = null; el("summary").innerHTML = "";
+  }
+  function restyle() {
+    drawn.forEach(g => {
+      const sel = g.rank === selectedRank;
+      g.lines.forEach(l => {
+        l.setStyle({ weight: sel ? 9 : 4, opacity: sel ? 0.95 : 0.5 });
+        if (sel) l.bringToFront();
+      });
+    });
+    document.querySelectorAll(".card").forEach(c =>
+      c.classList.toggle("sel", parseInt(c.dataset.rank, 10) === selectedRank));
+  }
+  function selectPath(rank) { selectedRank = rank; restyle(); }
+
+  function drawRoutes(data) {
+    clearRoutes();
+    routeData = data;
+    const order = data.paths.slice().sort((a, b) => b.rank - a.rank);   // best drawn last = on top
+    for (const p of order) {
+      const lines = p.segments.map(s =>
+        L.polyline(s.geometry, { color: s.color, weight: 4, opacity: 0.5, lineCap: "butt",
+                                 dashArray: s.extrapolated ? "6 6" : null, bubblingMouseEvents: false })
+          .addTo(map)
+          .bindTooltip(`<b>${esc(s.name || "(unnamed road)")}</b><br>sensor: ${esc(s.sensor_name)} ` +
+            `(${(s.distance_to_sensor_m / 1000).toFixed(1)} km away)<br>` +
+            `predicted ${s.predicted_speed_kmh.toFixed(0)} km/h - ${s.band}`, { sticky: true })
+          .on("click", () => selectPath(p.rank)));
+      drawn.push({ rank: p.rank, lines });
+    }
+    const best = data.paths[0];
+    map.fitBounds(L.latLngBounds(best.segments.flatMap(s => s.geometry)), { padding: [30, 30] });
+    selectedRank = 1;
+    el("summary").innerHTML = data.paths.map(p => {
+      const title = p.rank === 1 ? "&#9733; Best" : `Alt ${p.rank - 1}`;
+      return `<div class="card" data-rank="${p.rank}"><b>${title}:</b> ${p.total_length_km} km, predicted ` +
+        `<b>${p.total_time_min} min</b> at +${data.horizon_min} min horizon ` +
+        `(avg ${p.mean_speed_kmh} km/h)<br><span class="muted">${p.pct_heavy}% heavy, ` +
+        `${p.pct_moderate}% moderate, ${p.pct_free}% free</span></div>`;
+    }).join("");
+    document.querySelectorAll(".card").forEach(c =>
+      c.addEventListener("click", () => selectPath(parseInt(c.dataset.rank, 10))));
+    restyle();
+    showBox("warnings", data.warnings || []);
+  }
+
+  async function computeRoutes() {
+    if (!src || !dst) { showBox("error", ["Pick a source and destination first (click the map twice, or use a preset)."]); return; }
+    const btn = el("compute"); btn.disabled = true; btn.textContent = "Computing...";
+    try {
+      const r = await fetch("/api/route", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ src_lat: src.lat, src_lon: src.lon, dst_lat: dst.lat, dst_lon: dst.lon,
+                               horizon_min: horizon, k_paths: 3 }) });
+      const data = await r.json();
+      if (!r.ok) throw new Error(typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail));
+      madeAt = new Date(data.forecast_made_at); renderStatus();
+      drawRoutes(data); showBox("error", []);
+    } catch (e) { showBox("error", [`Route failed: ${e.message}`]); }
+    finally { btn.disabled = false; btn.textContent = "Compute Routes"; }
+  }
+
+  // ---------------------------------------------------------------- wiring
+  el("compute").addEventListener("click", computeRoutes);
+  el("clear").addEventListener("click", () => {
+    clearRoutes();
+    [srcMarker, dstMarker].forEach(m => m && map.removeLayer(m));
+    srcMarker = dstMarker = src = dst = null; nextClick = "src";
+    el("src-text").textContent = "(click map to set)"; el("dst-text").textContent = "(click map again)";
+    updateGoogleLink();
+  });
+  el("horizons").addEventListener("click", async ev => {
+    const b = ev.target.closest("button"); if (!b) return;
+    horizon = parseInt(b.dataset.h, 10);
+    document.querySelectorAll("#horizons button").forEach(x => x.classList.toggle("active", x === b));
+    await refreshSensors();
+    if (src && dst) computeRoutes();
+  });
+
+  fetch("/api/presets").then(r => r.json()).then(presets => {
+    const box = el("presets"); box.innerHTML = "One-click presets: ";
+    presets.forEach(p => {
+      const b = document.createElement("button");
+      b.textContent = p.label;
+      b.addEventListener("click", () => {
+        setPoint("src", p.src); setPoint("dst", p.dst); nextClick = "src"; computeRoutes();
+      });
+      box.appendChild(b);
+    });
+  });
+
+  refreshSensors();
+  setInterval(async () => { await refreshSensors(); if (src && dst) computeRoutes(); }, REFRESH_MS);
+  setInterval(renderStatus, 20000);
+</script>
+</body>
+</html>
