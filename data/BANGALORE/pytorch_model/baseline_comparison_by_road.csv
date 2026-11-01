@@ -1,0 +1,577 @@
+road,horizon_days,model,targets,mae_kmh,rmse_kmh
+100 Feet Road,1,DCRNN,150,8.948220,10.832904
+100 Feet Road,1,Persistence,150,12.580631,15.063967
+100 Feet Road,1,Training mean,150,8.966057,10.853485
+Anil Kumble Circle,1,DCRNN,138,8.131847,9.983476
+Anil Kumble Circle,1,Persistence,138,11.911384,14.470128
+Anil Kumble Circle,1,Training mean,138,7.845552,9.918519
+Ballari Road,1,DCRNN,78,8.327254,10.531170
+Ballari Road,1,Persistence,78,12.228930,15.031521
+Ballari Road,1,Training mean,78,8.016573,10.025904
+CMH Road,1,DCRNN,149,10.025658,12.959758
+CMH Road,1,Persistence,149,13.974499,17.902439
+CMH Road,1,Training mean,149,9.959844,12.601370
+Hebbal Flyover,1,DCRNN,89,8.169556,10.405572
+Hebbal Flyover,1,Persistence,89,11.901735,14.985163
+Hebbal Flyover,1,Training mean,89,8.087229,10.397578
+Hosur Road,1,DCRNN,58,8.279474,10.215312
+Hosur Road,1,Persistence,58,11.327145,13.226606
+Hosur Road,1,Training mean,58,9.478319,11.634547
+ITPL Main Road,1,DCRNN,79,8.328063,10.405908
+ITPL Main Road,1,Persistence,79,11.170732,14.235733
+ITPL Main Road,1,Training mean,79,8.717013,10.694910
+Jayanagar 4th Block,1,DCRNN,96,9.721799,12.098720
+Jayanagar 4th Block,1,Persistence,96,13.604460,16.852857
+Jayanagar 4th Block,1,Training mean,96,9.444274,11.797877
+Marathahalli Bridge,1,DCRNN,89,7.739317,9.606529
+Marathahalli Bridge,1,Persistence,89,9.741999,12.136853
+Marathahalli Bridge,1,Training mean,89,7.632978,9.334533
+Sarjapur Road,1,DCRNN,116,7.413278,9.475422
+Sarjapur Road,1,Persistence,116,10.830146,13.676775
+Sarjapur Road,1,Training mean,116,7.677474,9.497752
+Silk Board Junction,1,DCRNN,49,9.285955,11.967166
+Silk Board Junction,1,Persistence,49,14.117116,17.348326
+Silk Board Junction,1,Training mean,49,9.941679,12.281033
+Sony World Junction,1,DCRNN,113,8.230727,10.312552
+Sony World Junction,1,Persistence,113,10.998267,13.809348
+Sony World Junction,1,Training mean,113,8.068822,10.188107
+South End Circle,1,DCRNN,108,8.985013,10.731179
+South End Circle,1,Persistence,108,12.366060,15.065634
+South End Circle,1,Training mean,108,8.728709,10.483787
+Trinity Circle,1,DCRNN,125,8.127511,9.847403
+Trinity Circle,1,Persistence,125,10.671908,13.635431
+Trinity Circle,1,Training mean,125,8.263844,9.910735
+Tumkur Road,1,DCRNN,70,8.951890,10.971780
+Tumkur Road,1,Persistence,70,13.448166,17.066271
+Tumkur Road,1,Training mean,70,9.448730,11.750793
+Yeshwanthpur Circle,1,DCRNN,61,9.000170,11.119907
+Yeshwanthpur Circle,1,Persistence,61,13.025389,15.819283
+Yeshwanthpur Circle,1,Training mean,61,9.057126,11.310851
+100 Feet Road,2,DCRNN,150,8.967082,10.690916
+100 Feet Road,2,Persistence,150,11.866547,15.033304
+100 Feet Road,2,Training mean,150,8.874729,10.747019
+Anil Kumble Circle,2,DCRNN,137,8.071784,9.957987
+Anil Kumble Circle,2,Persistence,137,11.417567,13.978027
+Anil Kumble Circle,2,Training mean,137,7.853536,9.937924
+Ballari Road,2,DCRNN,79,8.434029,10.667308
+Ballari Road,2,Persistence,79,11.099449,13.596541
+Ballari Road,2,Training mean,79,8.120937,10.128848
+CMH Road,2,DCRNN,149,9.766524,12.682359
+CMH Road,2,Persistence,149,14.205561,17.344811
+CMH Road,2,Training mean,149,9.890229,12.567726
+Hebbal Flyover,2,DCRNN,90,7.994739,10.275620
+Hebbal Flyover,2,Persistence,90,12.189219,15.459984
+Hebbal Flyover,2,Training mean,90,8.024610,10.342881
+Hosur Road,2,DCRNN,59,8.393186,10.261549
+Hosur Road,2,Persistence,59,12.036339,14.381531
+Hosur Road,2,Training mean,59,9.407772,11.556271
+ITPL Main Road,2,DCRNN,79,8.201025,10.343040
+ITPL Main Road,2,Persistence,79,10.782192,14.064597
+ITPL Main Road,2,Training mean,79,8.607601,10.578888
+Jayanagar 4th Block,2,DCRNN,96,9.714093,12.090276
+Jayanagar 4th Block,2,Persistence,96,12.183775,14.846947
+Jayanagar 4th Block,2,Training mean,96,9.470411,11.812422
+Marathahalli Bridge,2,DCRNN,89,7.742804,9.639743
+Marathahalli Bridge,2,Persistence,89,9.899093,12.486780
+Marathahalli Bridge,2,Training mean,89,7.681184,9.378194
+Sarjapur Road,2,DCRNN,117,7.397609,9.332642
+Sarjapur Road,2,Persistence,117,10.837083,13.993639
+Sarjapur Road,2,Training mean,117,7.613016,9.457085
+Silk Board Junction,2,DCRNN,50,9.633218,12.571503
+Silk Board Junction,2,Persistence,50,14.015297,18.315198
+Silk Board Junction,2,Training mean,50,9.852429,12.182271
+Sony World Junction,2,DCRNN,112,8.104577,10.120828
+Sony World Junction,2,Persistence,112,10.807438,14.056853
+Sony World Junction,2,Training mean,112,8.080231,10.213350
+South End Circle,2,DCRNN,107,8.989271,10.725637
+South End Circle,2,Persistence,107,12.101285,15.003051
+South End Circle,2,Training mean,107,8.712364,10.483844
+Trinity Circle,2,DCRNN,125,8.105278,9.808077
+Trinity Circle,2,Persistence,125,10.904780,13.733909
+Trinity Circle,2,Training mean,125,8.257286,9.905965
+Tumkur Road,2,DCRNN,71,9.122509,11.143260
+Tumkur Road,2,Persistence,71,13.477768,16.873527
+Tumkur Road,2,Training mean,71,9.608547,11.925911
+Yeshwanthpur Circle,2,DCRNN,60,8.809684,10.895161
+Yeshwanthpur Circle,2,Persistence,60,12.117204,15.015015
+Yeshwanthpur Circle,2,Training mean,60,8.828501,11.019204
+100 Feet Road,3,DCRNN,150,8.866716,10.632531
+100 Feet Road,3,Persistence,150,12.454899,14.923809
+100 Feet Road,3,Training mean,150,8.832221,10.732589
+Anil Kumble Circle,3,DCRNN,137,8.074251,10.034798
+Anil Kumble Circle,3,Persistence,137,11.002113,13.930431
+Anil Kumble Circle,3,Training mean,137,7.858762,9.938319
+Ballari Road,3,DCRNN,79,8.382224,10.698928
+Ballari Road,3,Persistence,79,11.322021,13.868714
+Ballari Road,3,Training mean,79,8.120937,10.128848
+CMH Road,3,DCRNN,149,9.735794,12.606593
+CMH Road,3,Persistence,149,14.098352,17.609245
+CMH Road,3,Training mean,149,9.880861,12.561449
+Hebbal Flyover,3,DCRNN,89,8.229144,10.627532
+Hebbal Flyover,3,Persistence,89,12.482183,15.814323
+Hebbal Flyover,3,Training mean,89,8.030333,10.370273
+Hosur Road,3,DCRNN,58,8.564609,10.444252
+Hosur Road,3,Persistence,58,12.341008,14.947165
+Hosur Road,3,Training mean,58,9.391826,11.576233
+ITPL Main Road,3,DCRNN,79,8.277479,10.246950
+ITPL Main Road,3,Persistence,79,11.025573,13.515780
+ITPL Main Road,3,Training mean,79,8.636391,10.601481
+Jayanagar 4th Block,3,DCRNN,96,9.456810,11.881334
+Jayanagar 4th Block,3,Persistence,96,12.787321,15.109264
+Jayanagar 4th Block,3,Training mean,96,9.470411,11.812422
+Marathahalli Bridge,3,DCRNN,89,7.645241,9.636698
+Marathahalli Bridge,3,Persistence,89,10.264979,12.564420
+Marathahalli Bridge,3,Training mean,89,7.681184,9.378194
+Sarjapur Road,3,DCRNN,118,7.425898,9.331104
+Sarjapur Road,3,Persistence,118,10.574619,13.501323
+Sarjapur Road,3,Training mean,118,7.563147,9.418271
+Silk Board Junction,3,DCRNN,51,9.644617,12.643704
+Silk Board Junction,3,Persistence,51,14.911787,19.256413
+Silk Board Junction,3,Training mean,51,9.750608,12.079879
+Sony World Junction,3,DCRNN,112,8.235807,10.200540
+Sony World Junction,3,Persistence,112,11.162993,14.610465
+Sony World Junction,3,Training mean,112,8.043870,10.189664
+South End Circle,3,DCRNN,107,8.929283,10.653701
+South End Circle,3,Persistence,107,12.352092,15.210337
+South End Circle,3,Training mean,107,8.755608,10.524936
+Trinity Circle,3,DCRNN,124,8.185563,9.971036
+Trinity Circle,3,Persistence,124,11.169876,13.806919
+Trinity Circle,3,Training mean,124,8.304255,9.943428
+Tumkur Road,3,DCRNN,71,9.222486,11.225316
+Tumkur Road,3,Persistence,71,14.864954,18.310080
+Tumkur Road,3,Training mean,71,9.608547,11.925911
+Yeshwanthpur Circle,3,DCRNN,60,8.743068,10.906441
+Yeshwanthpur Circle,3,Persistence,60,14.230448,17.352502
+Yeshwanthpur Circle,3,Training mean,60,8.828501,11.019204
+100 Feet Road,4,DCRNN,150,8.924887,10.774527
+100 Feet Road,4,Persistence,150,11.141490,13.875029
+100 Feet Road,4,Training mean,150,8.819764,10.725439
+Anil Kumble Circle,4,DCRNN,137,8.063434,10.105228
+Anil Kumble Circle,4,Persistence,137,10.867769,13.365087
+Anil Kumble Circle,4,Training mean,137,7.901173,9.967567
+Ballari Road,4,DCRNN,79,8.254424,10.499629
+Ballari Road,4,Persistence,79,11.581070,14.506907
+Ballari Road,4,Training mean,79,8.120937,10.128848
+CMH Road,4,DCRNN,149,10.208181,13.170614
+CMH Road,4,Persistence,149,12.811867,17.294931
+CMH Road,4,Training mean,149,9.968150,12.635998
+Hebbal Flyover,4,DCRNN,89,8.362902,10.739658
+Hebbal Flyover,4,Persistence,89,12.481754,15.223073
+Hebbal Flyover,4,Training mean,89,8.049318,10.374750
+Hosur Road,4,DCRNN,59,8.543079,10.512681
+Hosur Road,4,Persistence,59,12.265025,14.858876
+Hosur Road,4,Training mean,59,9.274150,11.482138
+ITPL Main Road,4,DCRNN,79,8.299793,10.227212
+ITPL Main Road,4,Persistence,79,10.767110,13.263147
+ITPL Main Road,4,Training mean,79,8.636391,10.601481
+Jayanagar 4th Block,4,DCRNN,95,9.516383,11.904417
+Jayanagar 4th Block,4,Persistence,95,12.666980,15.470628
+Jayanagar 4th Block,4,Training mean,95,9.569827,11.874429
+Marathahalli Bridge,4,DCRNN,90,7.745187,9.794978
+Marathahalli Bridge,4,Persistence,90,10.207548,12.643086
+Marathahalli Bridge,4,Training mean,90,7.633328,9.332727
+Sarjapur Road,4,DCRNN,118,7.370471,9.366162
+Sarjapur Road,4,Persistence,118,10.456926,13.050187
+Sarjapur Road,4,Training mean,118,7.572179,9.424940
+Silk Board Junction,4,DCRNN,51,9.552421,12.624400
+Silk Board Junction,4,Persistence,51,13.328508,17.738501
+Silk Board Junction,4,Training mean,51,9.737778,12.068543
+Sony World Junction,4,DCRNN,112,8.303356,10.304006
+Sony World Junction,4,Persistence,112,11.360543,14.467911
+Sony World Junction,4,Training mean,112,8.025119,10.180476
+South End Circle,4,DCRNN,108,8.762426,10.545496
+South End Circle,4,Persistence,108,11.700627,14.792438
+South End Circle,4,Training mean,108,8.695466,10.478354
+Trinity Circle,4,DCRNN,125,8.081724,9.932945
+Trinity Circle,4,Persistence,125,10.746905,13.400706
+Trinity Circle,4,Training mean,125,8.292633,9.922515
+Tumkur Road,4,DCRNN,70,9.420660,11.381921
+Tumkur Road,4,Persistence,70,12.770861,16.012945
+Tumkur Road,4,Training mean,70,9.686435,12.000516
+Yeshwanthpur Circle,4,DCRNN,61,9.035013,11.303865
+Yeshwanthpur Circle,4,Persistence,61,12.904577,16.065825
+Yeshwanthpur Circle,4,Training mean,61,9.002460,11.208373
+100 Feet Road,5,DCRNN,149,8.848524,10.693345
+100 Feet Road,5,Persistence,149,13.049111,15.970219
+100 Feet Road,5,Training mean,149,8.799895,10.718008
+Anil Kumble Circle,5,DCRNN,137,7.975970,10.056427
+Anil Kumble Circle,5,Persistence,137,12.091203,14.744029
+Anil Kumble Circle,5,Training mean,137,7.909392,9.977027
+Ballari Road,5,DCRNN,80,8.384710,10.618788
+Ballari Road,5,Persistence,80,11.167625,13.975376
+Ballari Road,5,Training mean,80,8.185632,10.174534
+CMH Road,5,DCRNN,150,10.017109,12.897203
+CMH Road,5,Persistence,150,14.783640,19.114864
+CMH Road,5,Training mean,150,9.946882,12.605961
+Hebbal Flyover,5,DCRNN,89,7.849704,10.074841
+Hebbal Flyover,5,Persistence,89,12.340072,15.043635
+Hebbal Flyover,5,Training mean,89,7.810674,9.903568
+Hosur Road,5,DCRNN,58,8.494969,10.501276
+Hosur Road,5,Persistence,58,10.827012,13.381019
+Hosur Road,5,Training mean,58,9.159121,11.389848
+ITPL Main Road,5,DCRNN,79,8.316744,10.265888
+ITPL Main Road,5,Persistence,79,11.163280,13.165151
+ITPL Main Road,5,Training mean,79,8.636391,10.601481
+Jayanagar 4th Block,5,DCRNN,95,9.761558,11.967290
+Jayanagar 4th Block,5,Persistence,95,12.343633,15.244109
+Jayanagar 4th Block,5,Training mean,95,9.615432,11.886137
+Marathahalli Bridge,5,DCRNN,90,7.798307,9.592714
+Marathahalli Bridge,5,Persistence,90,10.086125,13.119030
+Marathahalli Bridge,5,Training mean,90,7.633328,9.332727
+Sarjapur Road,5,DCRNN,117,7.529914,9.503296
+Sarjapur Road,5,Persistence,117,11.367914,13.763067
+Sarjapur Road,5,Training mean,117,7.629971,9.464835
+Silk Board Junction,5,DCRNN,50,8.955367,11.798722
+Silk Board Junction,5,Persistence,50,12.633053,16.526689
+Silk Board Junction,5,Training mean,50,9.616631,11.982195
+Sony World Junction,5,DCRNN,112,8.021809,10.113668
+Sony World Junction,5,Persistence,112,10.223239,13.119577
+Sony World Junction,5,Training mean,112,7.962723,10.135919
+South End Circle,5,DCRNN,107,8.867825,10.641996
+South End Circle,5,Persistence,107,10.962626,13.772555
+South End Circle,5,Training mean,107,8.726833,10.514543
+Trinity Circle,5,DCRNN,126,8.188433,9.957311
+Trinity Circle,5,Persistence,126,10.849455,13.454797
+Trinity Circle,5,Training mean,126,8.228632,9.883083
+Tumkur Road,5,DCRNN,71,9.381860,11.329135
+Tumkur Road,5,Persistence,71,12.980859,16.143675
+Tumkur Road,5,Training mean,71,9.623401,11.931743
+Yeshwanthpur Circle,5,DCRNN,60,8.843399,11.182522
+Yeshwanthpur Circle,5,Persistence,60,12.249429,15.488641
+Yeshwanthpur Circle,5,Training mean,60,9.095105,11.292642
+100 Feet Road,6,DCRNN,149,8.615297,10.515956
+100 Feet Road,6,Persistence,149,12.289701,14.845980
+100 Feet Road,6,Training mean,149,8.773435,10.696730
+Anil Kumble Circle,6,DCRNN,137,7.895387,10.011398
+Anil Kumble Circle,6,Persistence,137,11.377043,14.111538
+Anil Kumble Circle,6,Training mean,137,8.016219,10.055645
+Ballari Road,6,DCRNN,80,8.413550,10.526473
+Ballari Road,6,Persistence,80,10.677275,13.579886
+Ballari Road,6,Training mean,80,8.119793,10.154710
+CMH Road,6,DCRNN,150,9.993796,12.716000
+CMH Road,6,Persistence,150,14.056823,17.447379
+CMH Road,6,Training mean,150,9.913050,12.588060
+Hebbal Flyover,6,DCRNN,88,7.827945,9.945504
+Hebbal Flyover,6,Persistence,88,11.589535,14.174654
+Hebbal Flyover,6,Training mean,88,7.872596,9.956497
+Hosur Road,6,DCRNN,59,8.861482,10.661433
+Hosur Road,6,Persistence,59,12.716333,14.350810
+Hosur Road,6,Training mean,59,9.203015,11.396027
+ITPL Main Road,6,DCRNN,80,7.878694,9.989829
+ITPL Main Road,6,Persistence,80,11.876300,13.861016
+ITPL Main Road,6,Training mean,80,8.544226,10.535960
+Jayanagar 4th Block,6,DCRNN,95,9.630248,11.848066
+Jayanagar 4th Block,6,Persistence,95,13.221030,16.030840
+Jayanagar 4th Block,6,Training mean,95,9.648431,11.897388
+Marathahalli Bridge,6,DCRNN,89,7.874162,9.784879
+Marathahalli Bridge,6,Persistence,89,10.509426,12.937045
+Marathahalli Bridge,6,Training mean,89,7.647614,9.360752
+Sarjapur Road,6,DCRNN,118,7.490442,9.428039
+Sarjapur Road,6,Persistence,118,10.550616,13.126200
+Sarjapur Road,6,Training mean,118,7.619361,9.442915
+Silk Board Junction,6,DCRNN,50,9.220830,12.034328
+Silk Board Junction,6,Persistence,50,13.983291,17.688029
+Silk Board Junction,6,Training mean,50,9.616631,11.982195
+Sony World Junction,6,DCRNN,112,7.962780,10.074954
+Sony World Junction,6,Persistence,112,10.760982,13.603271
+Sony World Junction,6,Training mean,112,7.991476,10.142777
+South End Circle,6,DCRNN,106,9.003804,10.759980
+South End Circle,6,Persistence,106,11.500611,14.355881
+South End Circle,6,Training mean,106,8.746044,10.544018
+Trinity Circle,6,DCRNN,126,8.173483,9.950108
+Trinity Circle,6,Persistence,126,11.051479,13.558529
+Trinity Circle,6,Training mean,126,8.281248,9.920787
+Tumkur Road,6,DCRNN,71,9.248962,11.270536
+Tumkur Road,6,Persistence,71,12.325240,15.786660
+Tumkur Road,6,Training mean,71,9.631376,11.937811
+Yeshwanthpur Circle,6,DCRNN,60,8.721067,10.981308
+Yeshwanthpur Circle,6,Persistence,60,12.691446,15.555031
+Yeshwanthpur Circle,6,Training mean,60,9.095105,11.292642
+100 Feet Road,7,DCRNN,149,8.670869,10.591431
+100 Feet Road,7,Persistence,149,12.537648,15.724684
+100 Feet Road,7,Training mean,149,8.745116,10.674750
+Anil Kumble Circle,7,DCRNN,138,7.975443,10.106528
+Anil Kumble Circle,7,Persistence,138,11.132566,14.033638
+Anil Kumble Circle,7,Training mean,138,8.028212,10.052913
+Ballari Road,7,DCRNN,80,8.404234,10.441043
+Ballari Road,7,Persistence,80,10.571933,13.004422
+Ballari Road,7,Training mean,80,8.119793,10.154710
+CMH Road,7,DCRNN,150,10.069712,12.980786
+CMH Road,7,Persistence,150,13.907992,17.986712
+CMH Road,7,Training mean,150,9.794002,12.499727
+Hebbal Flyover,7,DCRNN,89,7.445219,9.654374
+Hebbal Flyover,7,Persistence,89,12.058535,14.960367
+Hebbal Flyover,7,Training mean,89,7.802807,9.901970
+Hosur Road,7,DCRNN,58,8.234369,10.043490
+Hosur Road,7,Persistence,58,13.089286,14.970671
+Hosur Road,7,Training mean,58,8.895078,10.930715
+ITPL Main Road,7,DCRNN,79,8.135994,10.250682
+ITPL Main Road,7,Persistence,79,11.384189,13.271332
+ITPL Main Road,7,Training mean,79,8.583955,10.584976
+Jayanagar 4th Block,7,DCRNN,94,9.521258,11.841994
+Jayanagar 4th Block,7,Persistence,94,12.813423,16.119012
+Jayanagar 4th Block,7,Training mean,94,9.533486,11.772991
+Marathahalli Bridge,7,DCRNN,89,7.855584,9.777122
+Marathahalli Bridge,7,Persistence,89,10.995818,13.481160
+Marathahalli Bridge,7,Training mean,89,7.770635,9.443835
+Sarjapur Road,7,DCRNN,118,7.519661,9.572416
+Sarjapur Road,7,Persistence,118,10.292964,12.502697
+Sarjapur Road,7,Training mean,118,7.619598,9.442928
+Silk Board Junction,7,DCRNN,50,9.321810,12.076901
+Silk Board Junction,7,Persistence,50,14.997576,18.126948
+Silk Board Junction,7,Training mean,50,9.616631,11.982195
+Sony World Junction,7,DCRNN,112,8.228229,10.260524
+Sony World Junction,7,Persistence,112,10.944580,14.045469
+Sony World Junction,7,Training mean,112,8.080953,10.200833
+South End Circle,7,DCRNN,105,8.728957,10.495598
+South End Circle,7,Persistence,105,12.801537,15.480756
+South End Circle,7,Training mean,105,8.654638,10.441764
+Trinity Circle,7,DCRNN,127,8.184131,9.945923
+Trinity Circle,7,Persistence,127,11.587518,14.199733
+Trinity Circle,7,Training mean,127,8.227486,9.882494
+Tumkur Road,7,DCRNN,71,9.216961,11.327944
+Tumkur Road,7,Persistence,71,14.358248,17.938880
+Tumkur Road,7,Training mean,71,9.631376,11.937811
+Yeshwanthpur Circle,7,DCRNN,59,8.671450,10.984557
+Yeshwanthpur Circle,7,Persistence,59,14.027089,16.776067
+Yeshwanthpur Circle,7,Training mean,59,9.127485,11.349461
+100 Feet Road,8,DCRNN,149,8.887032,10.852063
+100 Feet Road,8,Persistence,149,11.493123,14.015532
+100 Feet Road,8,Training mean,149,8.827510,10.768873
+Anil Kumble Circle,8,DCRNN,138,8.052905,10.137921
+Anil Kumble Circle,8,Persistence,138,11.182116,14.327220
+Anil Kumble Circle,8,Training mean,138,8.010242,10.040003
+Ballari Road,8,DCRNN,81,8.183002,10.340539
+Ballari Road,8,Persistence,81,12.003229,14.448147
+Ballari Road,8,Training mean,81,8.111567,10.125755
+CMH Road,8,DCRNN,150,10.054213,12.779915
+CMH Road,8,Persistence,150,14.065989,17.477229
+CMH Road,8,Training mean,150,9.765833,12.492978
+Hebbal Flyover,8,DCRNN,89,7.589246,9.624805
+Hebbal Flyover,8,Persistence,89,12.350527,15.148620
+Hebbal Flyover,8,Training mean,89,7.750670,9.849261
+Hosur Road,8,DCRNN,59,8.204158,9.949544
+Hosur Road,8,Persistence,59,12.508921,14.897407
+Hosur Road,8,Training mean,59,8.902307,10.905419
+ITPL Main Road,8,DCRNN,78,8.204100,10.350782
+ITPL Main Road,8,Persistence,78,11.381964,13.637384
+ITPL Main Road,8,Training mean,78,8.544932,10.570939
+Jayanagar 4th Block,8,DCRNN,93,9.407021,11.709731
+Jayanagar 4th Block,8,Persistence,93,13.087487,16.064583
+Jayanagar 4th Block,8,Training mean,93,9.522033,11.784983
+Marathahalli Bridge,8,DCRNN,90,8.104227,10.056876
+Marathahalli Bridge,8,Persistence,90,10.749562,13.188070
+Marathahalli Bridge,8,Training mean,90,7.897227,9.606024
+Sarjapur Road,8,DCRNN,119,7.418447,9.441894
+Sarjapur Road,8,Persistence,119,10.394865,13.098886
+Sarjapur Road,8,Training mean,119,7.571965,9.404869
+Silk Board Junction,8,DCRNN,50,9.055916,11.819389
+Silk Board Junction,8,Persistence,50,13.991996,17.176562
+Silk Board Junction,8,Training mean,50,9.616631,11.982195
+Sony World Junction,8,DCRNN,111,8.205319,10.291579
+Sony World Junction,8,Persistence,111,11.124701,14.187692
+Sony World Junction,8,Training mean,111,8.146490,10.246394
+South End Circle,8,DCRNN,104,8.758264,10.534193
+South End Circle,8,Persistence,104,12.537844,14.823856
+South End Circle,8,Training mean,104,8.681754,10.476234
+Trinity Circle,8,DCRNN,127,8.176160,9.944218
+Trinity Circle,8,Persistence,127,12.433673,15.085214
+Trinity Circle,8,Training mean,127,8.229170,9.883999
+Tumkur Road,8,DCRNN,71,9.361593,11.470459
+Tumkur Road,8,Persistence,71,13.413477,16.768852
+Tumkur Road,8,Training mean,71,9.631376,11.937811
+Yeshwanthpur Circle,8,DCRNN,59,8.848809,11.103095
+Yeshwanthpur Circle,8,Persistence,59,13.848805,16.446714
+Yeshwanthpur Circle,8,Training mean,59,9.127485,11.349461
+100 Feet Road,9,DCRNN,149,8.778989,10.725010
+100 Feet Road,9,Persistence,149,12.130800,15.005646
+100 Feet Road,9,Training mean,149,8.761809,10.714617
+Anil Kumble Circle,9,DCRNN,138,8.126593,10.065523
+Anil Kumble Circle,9,Persistence,138,11.746700,14.550541
+Anil Kumble Circle,9,Training mean,138,8.065331,10.071318
+Ballari Road,9,DCRNN,81,8.097354,10.220328
+Ballari Road,9,Persistence,81,11.237255,14.099323
+Ballari Road,9,Training mean,81,8.079922,10.117639
+CMH Road,9,DCRNN,150,9.510165,12.276104
+CMH Road,9,Persistence,150,14.417126,17.886942
+CMH Road,9,Training mean,150,9.747228,12.486801
+Hebbal Flyover,9,DCRNN,88,7.720248,9.866751
+Hebbal Flyover,9,Persistence,88,12.846097,15.521369
+Hebbal Flyover,9,Training mean,88,7.833505,9.904943
+Hosur Road,9,DCRNN,60,8.088910,9.725501
+Hosur Road,9,Persistence,60,12.507425,14.882290
+Hosur Road,9,Training mean,60,8.762937,10.814384
+ITPL Main Road,9,DCRNN,79,8.066528,10.277225
+ITPL Main Road,9,Persistence,79,11.647788,14.437500
+ITPL Main Road,9,Training mean,79,8.438640,10.503835
+Jayanagar 4th Block,9,DCRNN,92,9.403676,11.667877
+Jayanagar 4th Block,9,Persistence,92,13.555025,16.817347
+Jayanagar 4th Block,9,Training mean,92,9.455093,11.735537
+Marathahalli Bridge,9,DCRNN,90,7.914960,9.921056
+Marathahalli Bridge,9,Persistence,90,11.225101,13.677714
+Marathahalli Bridge,9,Training mean,90,7.897227,9.606024
+Sarjapur Road,9,DCRNN,119,7.678307,9.588098
+Sarjapur Road,9,Persistence,119,9.316151,12.209878
+Sarjapur Road,9,Training mean,119,7.623032,9.429397
+Silk Board Junction,9,DCRNN,49,9.200610,12.033106
+Silk Board Junction,9,Persistence,49,13.918174,17.713098
+Silk Board Junction,9,Training mean,49,9.668249,12.061424
+Sony World Junction,9,DCRNN,111,8.132204,10.171257
+Sony World Junction,9,Persistence,111,10.745569,13.578764
+Sony World Junction,9,Training mean,111,8.131707,10.219495
+South End Circle,9,DCRNN,104,8.823583,10.648971
+South End Circle,9,Persistence,104,11.356259,13.825199
+South End Circle,9,Training mean,104,8.681754,10.476234
+Trinity Circle,9,DCRNN,127,8.253768,9.936073
+Trinity Circle,9,Persistence,127,11.410200,14.231964
+Trinity Circle,9,Training mean,127,8.198649,9.864841
+Tumkur Road,9,DCRNN,71,9.249603,11.336535
+Tumkur Road,9,Persistence,71,14.888034,17.997017
+Tumkur Road,9,Training mean,71,9.506109,11.872691
+Yeshwanthpur Circle,9,DCRNN,60,8.485920,10.778961
+Yeshwanthpur Circle,9,Persistence,60,14.237581,16.848056
+Yeshwanthpur Circle,9,Training mean,60,9.061923,11.274441
+100 Feet Road,10,DCRNN,149,8.668461,10.614010
+100 Feet Road,10,Persistence,149,12.292612,15.025596
+100 Feet Road,10,Training mean,149,8.634224,10.595655
+Anil Kumble Circle,10,DCRNN,139,8.104919,10.061009
+Anil Kumble Circle,10,Persistence,139,10.624604,13.171865
+Anil Kumble Circle,10,Training mean,139,8.060818,10.054837
+Ballari Road,10,DCRNN,80,8.155989,10.297648
+Ballari Road,10,Persistence,80,11.246995,13.877115
+Ballari Road,10,Training mean,80,8.117994,10.165108
+CMH Road,10,DCRNN,150,9.606600,12.526594
+CMH Road,10,Persistence,150,14.652698,18.480006
+CMH Road,10,Training mean,150,9.658694,12.410690
+Hebbal Flyover,10,DCRNN,88,7.673916,9.847007
+Hebbal Flyover,10,Persistence,88,11.711840,14.444738
+Hebbal Flyover,10,Training mean,88,7.936110,10.035832
+Hosur Road,10,DCRNN,61,7.914277,9.670342
+Hosur Road,10,Persistence,61,12.210882,15.011766
+Hosur Road,10,Training mean,61,8.656301,10.729271
+ITPL Main Road,10,DCRNN,80,7.888380,10.088431
+ITPL Main Road,10,Persistence,80,11.023354,14.104880
+ITPL Main Road,10,Training mean,80,8.547582,10.612713
+Jayanagar 4th Block,10,DCRNN,91,9.375928,11.611960
+Jayanagar 4th Block,10,Persistence,91,14.301524,17.272494
+Jayanagar 4th Block,10,Training mean,91,9.444414,11.749108
+Marathahalli Bridge,10,DCRNN,91,8.016221,9.862775
+Marathahalli Bridge,10,Persistence,91,11.948369,14.649557
+Marathahalli Bridge,10,Training mean,91,7.888614,9.582157
+Sarjapur Road,10,DCRNN,119,7.568915,9.481735
+Sarjapur Road,10,Persistence,119,10.153134,12.998239
+Sarjapur Road,10,Training mean,119,7.588399,9.388152
+Silk Board Junction,10,DCRNN,48,9.079191,11.727590
+Silk Board Junction,10,Persistence,48,11.387443,14.032631
+Silk Board Junction,10,Training mean,48,9.832591,12.183708
+Sony World Junction,10,DCRNN,111,8.051350,10.185104
+Sony World Junction,10,Persistence,111,11.153348,13.613923
+Sony World Junction,10,Training mean,111,8.098713,10.198172
+South End Circle,10,DCRNN,104,8.853379,10.659180
+South End Circle,10,Persistence,104,11.438202,13.519641
+South End Circle,10,Training mean,104,8.681754,10.476234
+Trinity Circle,10,DCRNN,127,8.143408,9.898059
+Trinity Circle,10,Persistence,127,11.352103,13.843830
+Trinity Circle,10,Training mean,127,8.147197,9.813207
+Tumkur Road,10,DCRNN,72,9.180658,11.176208
+Tumkur Road,10,Persistence,72,13.607082,17.330179
+Tumkur Road,10,Training mean,72,9.375556,11.789960
+Yeshwanthpur Circle,10,DCRNN,60,8.516552,10.837009
+Yeshwanthpur Circle,10,Persistence,60,14.346425,16.607475
+Yeshwanthpur Circle,10,Training mean,60,9.061923,11.274441
+100 Feet Road,11,DCRNN,149,8.615920,10.528526
+100 Feet Road,11,Persistence,149,12.537787,15.569472
+100 Feet Road,11,Training mean,149,8.634224,10.595655
+Anil Kumble Circle,11,DCRNN,139,8.233085,10.265348
+Anil Kumble Circle,11,Persistence,139,10.915125,13.659740
+Anil Kumble Circle,11,Training mean,139,8.060818,10.054837
+Ballari Road,11,DCRNN,80,8.014885,10.126514
+Ballari Road,11,Persistence,80,10.361918,13.634418
+Ballari Road,11,Training mean,80,7.957898,10.050387
+CMH Road,11,DCRNN,149,9.625993,12.502833
+CMH Road,11,Persistence,149,13.672761,17.043446
+CMH Road,11,Training mean,149,9.658685,12.427094
+Hebbal Flyover,11,DCRNN,89,7.897762,9.978532
+Hebbal Flyover,11,Persistence,89,11.957075,14.652548
+Hebbal Flyover,11,Training mean,89,7.886998,9.986445
+Hosur Road,11,DCRNN,61,8.165199,10.010954
+Hosur Road,11,Persistence,61,11.856730,14.856456
+Hosur Road,11,Training mean,61,8.656301,10.729271
+ITPL Main Road,11,DCRNN,79,8.105620,10.276980
+ITPL Main Road,11,Persistence,79,10.283544,13.028538
+ITPL Main Road,11,Training mean,79,8.486552,10.573219
+Jayanagar 4th Block,11,DCRNN,91,9.411418,11.644254
+Jayanagar 4th Block,11,Persistence,91,14.457637,17.572884
+Jayanagar 4th Block,11,Training mean,91,9.528064,11.813403
+Marathahalli Bridge,11,DCRNN,91,8.146700,9.982754
+Marathahalli Bridge,11,Persistence,91,12.447456,14.889232
+Marathahalli Bridge,11,Training mean,91,7.887327,9.581248
+Sarjapur Road,11,DCRNN,119,7.501936,9.509617
+Sarjapur Road,11,Persistence,119,9.955214,12.167026
+Sarjapur Road,11,Training mean,119,7.561346,9.359297
+Silk Board Junction,11,DCRNN,48,9.400201,11.843529
+Silk Board Junction,11,Persistence,48,11.909072,15.362537
+Silk Board Junction,11,Training mean,48,9.485792,11.712170
+Sony World Junction,11,DCRNN,112,8.022423,10.324540
+Sony World Junction,11,Persistence,112,11.125279,13.579014
+Sony World Junction,11,Training mean,112,8.219977,10.357164
+South End Circle,11,DCRNN,104,8.813453,10.652214
+South End Circle,11,Persistence,104,11.955507,14.391512
+South End Circle,11,Training mean,104,8.656600,10.467160
+Trinity Circle,11,DCRNN,128,7.840031,9.703545
+Trinity Circle,11,Persistence,128,10.417196,13.237525
+Trinity Circle,11,Training mean,128,8.104992,9.777810
+Tumkur Road,11,DCRNN,71,9.032375,11.020186
+Tumkur Road,11,Persistence,71,13.517857,16.820938
+Tumkur Road,11,Training mean,71,9.441815,11.859749
+Yeshwanthpur Circle,11,DCRNN,59,8.732530,11.003426
+Yeshwanthpur Circle,11,Persistence,59,14.710174,17.053580
+Yeshwanthpur Circle,11,Training mean,59,9.204657,11.369280
+100 Feet Road,12,DCRNN,149,8.700187,10.631617
+100 Feet Road,12,Persistence,149,12.380781,15.274537
+100 Feet Road,12,Training mean,149,8.707167,10.657985
+Anil Kumble Circle,12,DCRNN,139,8.138687,10.170468
+Anil Kumble Circle,12,Persistence,139,10.955436,13.905858
+Anil Kumble Circle,12,Training mean,139,8.046223,10.028057
+Ballari Road,12,DCRNN,79,7.962392,9.905646
+Ballari Road,12,Persistence,79,12.539094,15.492090
+Ballari Road,12,Training mean,79,7.812555,9.874471
+CMH Road,12,DCRNN,149,9.780784,12.630874
+CMH Road,12,Persistence,149,14.250071,18.239703
+CMH Road,12,Training mean,149,9.525376,12.309613
+Hebbal Flyover,12,DCRNN,88,8.006559,10.245298
+Hebbal Flyover,12,Persistence,88,12.842729,15.646866
+Hebbal Flyover,12,Training mean,88,7.886174,10.007119
+Hosur Road,12,DCRNN,62,8.228625,10.096059
+Hosur Road,12,Persistence,62,11.618132,14.878316
+Hosur Road,12,Training mean,62,8.774743,10.834640
+ITPL Main Road,12,DCRNN,79,7.923323,10.112578
+ITPL Main Road,12,Persistence,79,10.493325,13.139993
+ITPL Main Road,12,Training mean,79,8.486552,10.573219
+Jayanagar 4th Block,12,DCRNN,90,9.583777,11.729133
+Jayanagar 4th Block,12,Persistence,90,14.247261,17.518475
+Jayanagar 4th Block,12,Training mean,90,9.523030,11.832169
+Marathahalli Bridge,12,DCRNN,90,8.055959,9.883816
+Marathahalli Bridge,12,Persistence,90,11.659181,14.128321
+Marathahalli Bridge,12,Training mean,90,7.917780,9.619044
+Sarjapur Road,12,DCRNN,120,7.639770,9.503006
+Sarjapur Road,12,Persistence,120,10.285295,13.175348
+Sarjapur Road,12,Training mean,120,7.529155,9.326332
+Silk Board Junction,12,DCRNN,48,9.037882,11.806988
+Silk Board Junction,12,Persistence,48,12.597346,16.278861
+Silk Board Junction,12,Training mean,48,9.485792,11.712170
+Sony World Junction,12,DCRNN,112,8.106545,10.363584
+Sony World Junction,12,Persistence,112,12.121039,15.006642
+Sony World Junction,12,Training mean,112,8.351872,10.509546
+South End Circle,12,DCRNN,104,8.823352,10.722966
+South End Circle,12,Persistence,104,11.960002,14.162022
+South End Circle,12,Training mean,104,8.665768,10.477962
+Trinity Circle,12,DCRNN,128,7.907007,9.766882
+Trinity Circle,12,Persistence,128,11.319197,13.925736
+Trinity Circle,12,Training mean,128,8.004201,9.651450
+Tumkur Road,12,DCRNN,71,9.046645,11.053240
+Tumkur Road,12,Persistence,71,11.984853,14.746139
+Tumkur Road,12,Training mean,71,9.441815,11.859749
+Yeshwanthpur Circle,12,DCRNN,60,8.636107,11.021669
+Yeshwanthpur Circle,12,Persistence,60,12.883404,15.299027
+Yeshwanthpur Circle,12,Training mean,60,9.189763,11.325079

@@ -1,0 +1,19 @@
+Average Speed
+Traffic Volume
+Travel Time Index
+Congestion Level
+Road Capacity Utilization
+Incident Reports
+Public Transport Usage
+Traffic Signal Compliance
+Parking Usage
+Pedestrian and Cyclist Count
+weather_Clear
+weather_Overcast
+weather_Fog
+weather_Rain
+weather_Windy
+Roadwork and Construction Activity
+dow_sin
+dow_cos
+observed_record

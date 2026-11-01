@@ -1,0 +1,13 @@
+[
+  {
+    "id": "27f01d79-9340-4cf8-a24f-8f2edd3f8cdc",
+    "road": "Silk Board Junction",
+    "type": "Waterlogging",
+    "severity": "High",
+    "description": "Water accumilation",
+    "source": "Dashboard report",
+    "status": "Resolved",
+    "created_at": "2026-10-30T15:00:57.070929+00:00",
+    "updated_at": "2026-10-30T15:17:31.573247+00:00"
+  }
+]

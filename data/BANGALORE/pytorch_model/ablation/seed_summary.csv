@@ -1,0 +1,3 @@
+model,runs,mean_seed_mae_kmh,std_seed_mae_kmh,mean_seed_rmse_kmh,std_seed_rmse_kmh
+DCRNN,5,8.545334,0.017568,10.703593,0.023277
+GRU,5,8.514570,0.008361,10.658268,0.004408

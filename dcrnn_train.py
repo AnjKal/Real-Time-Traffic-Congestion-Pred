@@ -11,8 +11,8 @@ from model.dcrnn_supervisor import DCRNNSupervisor
 
 
 def main(args):
-    with open(args.config_filename) as f:
-        supervisor_config = yaml.load(f)
+    with open(args.config_filename, encoding="utf-8") as f:
+        supervisor_config = yaml.safe_load(f)
 
         graph_pkl_filename = supervisor_config['data'].get('graph_pkl_filename')
         sensor_ids, sensor_id_to_ind, adj_mx = load_graph_data(graph_pkl_filename)

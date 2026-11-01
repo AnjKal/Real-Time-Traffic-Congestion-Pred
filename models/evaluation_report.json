@@ -1,0 +1,15 @@
+{
+  "device": "cpu",
+  "best_validation_loss": 0.059353517556233415,
+  "test_metrics": {
+    "GRU": {
+      "MAE_kmh": 2.6377716064453125,
+      "RMSE_kmh": 3.690070152282715
+    },
+    "Persistence": {
+      "MAE_kmh": 3.188969850540161,
+      "RMSE_kmh": 4.297994613647461
+    }
+  },
+  "note": "Evaluation is on synthetic data only."
+}
