@@ -1,0 +1,15 @@
+2026-11-03 20:26:22,949 - model.dcrnn_supervisor - INFO - Log directory: data/model/bangalore_15min_smoke\dcrnn_DR_2_h_12_64-64_lr_0.01_bs_16_1103202622/
+2026-11-03 20:26:22,961 - model.dcrnn_supervisor - INFO - {'base_dir': 'data/model/bangalore_15min_smoke', 'log_level': 'INFO', 'data': {'batch_size': 16, 'dataset_dir': 'data/BANGLORE_15MIN', 'test_batch_size': 16, 'val_batch_size': 16, 'graph_pkl_filename': 'data/sensor_graph/adj_mx_bangalore.pkl'}, 'model': {'cl_decay_steps': 2000, 'filter_type': 'dual_random_walk', 'horizon': 12, 'input_dim': 2, 'l1_decay': 0, 'max_diffusion_step': 2, 'num_nodes': 100, 'num_rnn_layers': 2, 'output_dim': 1, 'rnn_units': 64, 'seq_len': 12, 'use_curriculum_learning': True}, 'train': {'base_lr': 0.01, 'dropout': 0, 'epoch': 0, 'epochs': 2, 'epsilon': 0.001, 'global_step': 0, 'lr_decay_ratio': 0.1, 'max_grad_norm': 5, 'max_to_keep': 10, 'min_learning_rate': 2e-06, 'optimizer': 'adam', 'patience': 15, 'steps': [20, 30, 40, 50], 'test_every_n_epochs': 10}}
+2026-11-03 20:26:23,257 - model.dcrnn_supervisor - INFO - ('x_train', (907, 12, 100, 2))
+2026-11-03 20:26:23,257 - model.dcrnn_supervisor - INFO - ('y_train', (907, 12, 100, 2))
+2026-11-03 20:26:23,258 - model.dcrnn_supervisor - INFO - ('x_val', (129, 12, 100, 2))
+2026-11-03 20:26:23,258 - model.dcrnn_supervisor - INFO - ('y_val', (129, 12, 100, 2))
+2026-11-03 20:26:23,259 - model.dcrnn_supervisor - INFO - ('x_test', (261, 12, 100, 2))
+2026-11-03 20:26:23,259 - model.dcrnn_supervisor - INFO - ('y_test', (261, 12, 100, 2))
+2026-11-03 20:26:48,770 - model.dcrnn_supervisor - INFO - Total number of trainable parameters: 372352
+2026-11-03 20:26:51,186 - model.dcrnn_supervisor - INFO - Start training ...
+2026-11-03 20:30:18,736 - model.dcrnn_supervisor - INFO - Epoch [0/2] (57) train_mae: 0.0286, val_mae: 0.0314 lr:0.010000 206.5s
+2026-11-03 20:30:21,044 - model.dcrnn_supervisor - INFO - Val loss decrease from 0.0314 to 0.0314, saving to data/model/bangalore_15min_smoke\dcrnn_DR_2_h_12_64-64_lr_0.01_bs_16_1103202622/models-0.0314-57
+2026-11-03 20:33:17,879 - model.dcrnn_supervisor - INFO - Epoch [1/2] (114) train_mae: 0.0140, val_mae: 0.0246 lr:0.010000 176.8s
+2026-11-03 20:33:20,106 - model.dcrnn_supervisor - INFO - Val loss decrease from 0.0246 to 0.0246, saving to data/model/bangalore_15min_smoke\dcrnn_DR_2_h_12_64-64_lr_0.01_bs_16_1103202622/models-0.0246-114
+2026-11-03 20:36:08,668 - model.dcrnn_supervisor - INFO - Epoch [2/2] (171) train_mae: 0.0117, val_mae: 0.0279 lr:0.010000 168.6s
