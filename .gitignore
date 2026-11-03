@@ -101,3 +101,19 @@ ENV/
 
 # pycharm
 .idea/
+
+# Bangalore raw and generated datasets
+data/raw/
+data/BANGLORE/
+data/BANGLORE_15MIN/
+data/BANGLORE_REGENERATED/
+
+# Training outputs and checkpoints
+data/model/bangalore_15min_smoke/
+data/model/bangalore_smoke/
+data/model/bangalore_runs/
+
+# TensorFlow and experiment logs
+events.out.tfevents.*
+*.ckpt
+*.meta

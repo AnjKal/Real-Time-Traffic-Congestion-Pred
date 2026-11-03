@@ -171,7 +171,7 @@ def get_total_trainable_parameter_size():
     total_parameters = 0
     for variable in tf.trainable_variables():
         # shape is an array of tf.Dimension
-        total_parameters += np.product([x.value for x in variable.get_shape()])
+        total_parameters += np.prod([x.value for x in variable.get_shape()])
     return total_parameters
 
 
@@ -187,7 +187,7 @@ def load_dataset(dataset_dir, batch_size, test_batch_size=None, **kwargs):
         data['x_' + category][..., 0] = scaler.transform(data['x_' + category][..., 0])
         data['y_' + category][..., 0] = scaler.transform(data['y_' + category][..., 0])
     data['train_loader'] = DataLoader(data['x_train'], data['y_train'], batch_size, shuffle=True)
-    data['val_loader'] = DataLoader(data['x_val'], data['y_val'], test_batch_size, shuffle=False)
+    data['val_loader'] = DataLoader(data['x_val'], data['y_val'], kwargs.get('val_batch_size', test_batch_size), shuffle=False)
     data['test_loader'] = DataLoader(data['x_test'], data['y_test'], test_batch_size, shuffle=False)
     data['scaler'] = scaler
 
