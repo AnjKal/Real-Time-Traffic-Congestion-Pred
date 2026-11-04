@@ -58,7 +58,11 @@ def create_app(model_service_url=None, graph=None, spots=None):
 
     def road_graph():
         if state["graph"] is None:
-            state["graph"] = get_graph()
+            try:
+                state["graph"] = get_graph()
+            except FileNotFoundError:
+                raise HTTPException(503, "The road map has not been built yet. "
+                                         "Run this once: python -m webapp.osm_graph")
         return state["graph"]
 
     def call_model(path, params=None):

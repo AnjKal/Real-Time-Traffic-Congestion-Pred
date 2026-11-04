@@ -1,5 +1,7 @@
 # Extra packages for the live pipeline (collector + model service), Python 3.7 env.
-requests
-python-dotenv
-fastapi
-uvicorn
+# Install AFTER requirements.txt. protobuf must be 3.20.3 or TensorFlow 1.15 fails to import.
+protobuf==3.20.3
+requests==2.31.0
+python-dotenv==0.21.1
+fastapi==0.103.2
+uvicorn==0.22.0
