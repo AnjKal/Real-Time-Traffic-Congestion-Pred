@@ -1,6 +1,6 @@
 ## One-time setup
 
-Install Python 3.7.9 (for the model) and Python 3.10 or newer (for the map page). Get a TomTom API key.
+Install Python 3.7.9 (for the model) and Python 3.10 or newer (for the map page)-https://www.python.org/ftp/python/3.7.9/python-3.7.9-amd64.exe](https://www.python.org/ftp/python/3.7.9/python-3.7.9-amd64.exe?utm_source=chatgpt.com. Get a TomTom API key.
 Clone, then go into the folder:
 
 git clone -b <branch> https://github.com/AnjKal/Real-Time-Traffic-Congestion-Pred.git
