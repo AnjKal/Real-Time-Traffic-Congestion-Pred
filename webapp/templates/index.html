@@ -6,35 +6,35 @@
   <title>Bangalore Traffic Congestion Forecast</title>
   {{ header|safe }}
   <style>
+    /* The map library brings Bootstrap, which already defines .row and .card (and makes every child
+       of .row 100% wide). Our own class names are .ctl and .route so nothing collides. */
     html, body { height: auto; font-family: -apple-system, "Segoe UI", sans-serif; color: #222; }
     main { max-width: 1180px; margin: 0 auto; padding: 16px; }
     h1 { font-size: 1.5rem; margin: 0 0 4px; }
-    #banner { background: #fdebd0; border: 1px solid #e67e22; color: #7e5109; border-radius: 6px;
-              padding: 8px 12px; margin: 8px 0; display: none; }
     #status { color: #555; margin-bottom: 4px; }
     #error { color: #922b21; background: #fdedec; border-radius: 6px; padding: 6px 10px; display: none; margin: 8px 0; }
-    .row { margin: 10px 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .ctl { margin: 10px 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .ctl > * { width: auto; max-width: none; }
     button { border: 1px solid #888; background: #fff; border-radius: 6px; padding: 6px 12px; font-size: 14px; cursor: pointer; }
     button.active { background: #1f618d; color: #fff; border-color: #1f618d; }
     button.go { background: #27ae60; color: #fff; border-color: #27ae60; font-weight: 600; }
     button:disabled { opacity: .5; cursor: wait; }
-    #map-box { height: 62vh; min-height: 440px; border: 1px solid #aaa; border-radius: 6px; overflow: hidden; }
-    .card { border: 1px solid #ccc; border-radius: 6px; padding: 8px 12px; margin: 6px 0; cursor: pointer; }
-    .card.sel { border-color: #1f618d; box-shadow: 0 0 0 2px #1f618d33; }
+    #summary { display: flex; gap: 8px; flex-wrap: wrap; }
+    #map-box { height: 58vh; min-height: 420px; border: 1px solid #aaa; border-radius: 6px; overflow: hidden; }
+    .route { flex: 1 1 280px; border: 1px solid #ccc; border-radius: 6px; padding: 8px 12px; margin: 6px 0; cursor: pointer; }
+    .route.sel { border-color: #1f618d; box-shadow: 0 0 0 2px #1f618d33; }
     .muted { color: #777; font-size: 13px; }
   </style>
 </head>
 <body>
 <main>
   <h1>Bangalore Traffic Congestion Forecast</h1>
-  <div id="banner"></div>
   <div id="status">Loading forecast&hellip;</div>
-  <div id="error"></div>
 
-  <div class="row" id="horizons">Forecast for: <span class="muted">loading&hellip;</span></div>
-  <div class="row" id="presets">One-click routes: <span class="muted">loading&hellip;</span></div>
+  <div class="ctl" id="horizons">Forecast for: <span class="muted">loading&hellip;</span></div>
+  <div class="ctl" id="presets">One-click routes: <span class="muted">loading&hellip;</span></div>
 
-  <div class="row">
+  <div class="ctl">
     Or click two points on the map:
     <span>Source: <b id="src-text">(click the map)</b></span>
     <span>Destination: <b id="dst-text">(click again)</b></span>
@@ -42,26 +42,42 @@
     <button id="clear">Clear</button>
   </div>
 
+  <div id="error"></div>
+  <div id="summary"></div>
+
   <div id="map-box" data-map-var="{{ map_var|e }}" data-junction-vars="{{ junction_vars|tojson|forceescape }}">{{ html|safe }}</div>
 
-  <div class="row">
+  <div class="ctl">
     Legend:
     <span>&#128994; Free</span><span>&#128993; Moderate</span><span>&#128308; Heavy</span>
     <span class="muted">Road colours come from the nearest of the 100 junctions (the circles); dashed = more than 3 km from any junction.</span>
   </div>
-
-  <div id="summary"></div>
 
   <div><a id="gmaps" href="{{ google_maps_url }}" target="_blank" rel="noopener">Open Google Maps traffic layer for this corridor</a></div>
 </main>
 
 <script>{{ script|safe }}</script>
 <script>
+  // Any script error is shown on the page (not only in the browser console).
+  function fail(text) {
+    const box = document.getElementById("error");
+    box.style.display = "block"; box.textContent = text;
+  }
+  window.addEventListener("error", e => {
+    if (String(e.message).indexOf("map not loaded") < 0) fail("Page error: " + e.message);   // that one has its own message
+  });
+  window.addEventListener("unhandledrejection", e => fail("Page error: " + ((e.reason && e.reason.message) || e.reason)));
+
   const MAP_VAR = document.getElementById("map-box").dataset.mapVar;
   const JUNCTION_VARS = JSON.parse(document.getElementById("map-box").dataset.junctionVars);
   const GMAPS_DEFAULT = document.getElementById("gmaps").getAttribute("href");
   const REFRESH_MS = 60000;
   const map = window[MAP_VAR];
+  if (!map) {
+    fail("The map did not load. Its libraries come from the internet (cdn.jsdelivr.net, code.jquery.com, " +
+         "cdnjs.cloudflare.com): check this computer can reach them, then reload the page.");
+    throw new Error("map not loaded");
+  }
 
   let horizon = null, horizons = [], src = null, dst = null, nextClick = "src";
   let srcMarker = null, dstMarker = null, drawn = [], selectedRank = 1;
@@ -76,7 +92,6 @@
     box.innerHTML = text ? esc(text) : "";
   }
   function showInfo(data) {
-    
     const when = data.forecast_for ? new Date(data.forecast_for).toLocaleTimeString() : "";
     el("status").textContent = `Forecast for ${when} (+${data.horizon_min} min after the latest data, ` +
       `data is ${data.data_age_min == null ? "?" : data.data_age_min} min old)`;
@@ -135,7 +150,7 @@
       const sel = g.rank === selectedRank;
       g.lines.forEach(l => { l.setStyle({ weight: sel ? 9 : 4, opacity: sel ? 0.95 : 0.5 }); if (sel) l.bringToFront(); });
     });
-    document.querySelectorAll(".card").forEach(c => c.classList.toggle("sel", +c.dataset.rank === selectedRank));
+    document.querySelectorAll(".route").forEach(c => c.classList.toggle("sel", +c.dataset.rank === selectedRank));
   }
   function drawRoutes(data) {
     clearRoutes();
@@ -152,23 +167,27 @@
     map.fitBounds(L.latLngBounds(data.paths[0].segments.flatMap(s => s.geometry)), { padding: [30, 30] });
     selectedRank = 1;
     el("summary").innerHTML = data.paths.map(p =>
-      `<div class="card" data-rank="${p.rank}"><b>${p.rank === 1 ? "&#9733; Best" : "Alt " + (p.rank - 1)}:</b> ` +
+      `<div class="route" data-rank="${p.rank}"><b>${p.rank === 1 ? "&#9733; Best" : "Alt " + (p.rank - 1)}:</b> ` +
       `${p.total_length_km} km, predicted <b>${p.total_time_min} min</b> at +${data.horizon_min} min ` +
       `(avg ${p.mean_speed_kmh} km/h)<br><span class="muted">${p.pct_heavy}% heavy, ${p.pct_moderate}% moderate, ` +
       `${p.pct_free}% free</span></div>`).join("");
-    document.querySelectorAll(".card").forEach(c => c.addEventListener("click", () => { selectedRank = +c.dataset.rank; restyle(); }));
+    document.querySelectorAll(".route").forEach(c => c.addEventListener("click", () => { selectedRank = +c.dataset.rank; restyle(); }));
     restyle();
     showInfo(data);
   }
   async function computeRoutes() {
     if (!src || !dst) { showBox("error", "Pick a source and destination first (click the map twice, or use a one-click route)."); return; }
+    if (horizon == null) { showBox("error", "The forecast is not loaded yet. Wait for the status line above to show a forecast time, then try again."); return; }
     const btn = el("compute"); btn.disabled = true; btn.textContent = "Computing...";
+    showBox("error", "");
     try {
       const r = await fetch("/api/route", { method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ src_lat: src.lat, src_lon: src.lon, dst_lat: dst.lat, dst_lon: dst.lon,
                                horizon_min: horizon, k_paths: 3 }) });
-      const data = await r.json();
-      if (!r.ok) throw new Error(typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail));
+      let data = null;
+      try { data = await r.json(); } catch (e) { /* not JSON */ }
+      if (!r.ok) throw new Error(data && data.detail ? (typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail))
+                                                      : `server answered ${r.status}`);
       drawRoutes(data); showBox("error", "");
     } catch (e) { showBox("error", `Route failed: ${e.message}`); }
     finally { btn.disabled = false; btn.textContent = "Compute Routes"; }
@@ -206,7 +225,6 @@
       if (!r.ok) throw new Error(st.detail || r.statusText);
       horizons = st.horizons_min; horizon = horizons[0];
       buildHorizonButtons();
-      
       if (!st.ready) showBox("error", "Waiting for enough live data: " + (st.not_ready_reason || ""));
     } catch (e) { showBox("error", `Model service not reachable: ${e.message}`); return; }
     const presets = await (await fetch("/api/presets")).json();
