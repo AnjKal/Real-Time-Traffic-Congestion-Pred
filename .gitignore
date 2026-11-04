@@ -117,3 +117,10 @@ data/model/bangalore_runs/
 events.out.tfevents.*
 *.ckpt
 *.meta
+
+# live pipeline artifacts (generated, can be large)
+data/live/
+data/graph/
+logs/serving_bangalore/
+.venv37/
+.venv-web/

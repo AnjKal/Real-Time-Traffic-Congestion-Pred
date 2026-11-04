@@ -1,0 +1,5 @@
+# Extra packages for the live pipeline (collector + model service), Python 3.7 env.
+requests
+python-dotenv
+fastapi
+uvicorn
