@@ -1,40 +1,28 @@
-Steps to Run the Project
-1. Clone the repository
-git clone -b training https://github.com/AnjKal/Real-Time-Traffic-Congestion-Pred.git
+## One-time setup
+
+Install Python 3.7.9 (for the model) and Python 3.10 or newer (for the map page). Get a TomTom API key.
+Clone, then go into the folder:
+
+git clone -b <branch> https://github.com/AnjKal/Real-Time-Traffic-Congestion-Pred.git
 cd Real-Time-Traffic-Congestion-Pred
+Model environment (Command Prompt):
 
-
-2. Install Python 3.7.9
-
-Verify installation:
+py -3.7 -m venv .venv37
+.venv37\Scripts\activate.bat
 python --version
+pip install -r requirements.txt
+pip install protobuf==3.20.3
+pip install -r requirements_pipeline.txt
+## Map-page environment (new Command Prompt):
 
+python -m venv .venv-web
+.venv-web\Scripts\activate.bat
+pip install -r requirements_webapp.txt
+python -m webapp.osm_graph
+Copy .env.example to .env and paste the TomTom key.
+Every run
 
-3. Create and activate virtual environment
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-
-
-4. Install dependencies
-pip install tensorflow==1.15.0 numpy==1.18.5 pandas==1.1.5 scipy scikit-learn pyyaml matplotlib tables h5py
-
-
-5. Add the raw dataset
-
-Create data/raw/ and place these two files inside it:
-- tomtom_traffic_raw.csv
-- bangalore_traffic_spots.csv
-6. Generate the 15-minute dataset
-python scripts/generate_bangalore_15min_data.py
-
-
-7. Train the DCRNN model
-python dcrnn_train.py --config_filename=data/model/dcrnn_bangalore_15min_smoke.yaml --use_cpu_only
-
-
-8. Evaluate the model
-python evaluate_bangalore.py
-
-
-9. Compare DCRNN with the persistence baseline
-python evaluate_compare_bangalore.py
+Terminal 1: .venv37\Scripts\activate.bat, then python start_pipeline.py. Wait for "Model ready".
+Terminal 2: .venv-web\Scripts\activate.bat, then python run_webapp.py. Open http://127.0.0.1:8010/.
+The first forecast appears after about 24 minutes, and polling stops after 48.
+Then, in Terminal 1, type quit and run python evaluate_live.py --step-min 2
