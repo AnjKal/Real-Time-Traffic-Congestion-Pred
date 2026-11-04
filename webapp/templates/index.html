@@ -42,7 +42,7 @@
     <button id="clear">Clear</button>
   </div>
 
-  <div id="map-box">{{ html|safe }}</div>
+  <div id="map-box" data-map-var="{{ map_var|e }}" data-junction-vars="{{ junction_vars|tojson|forceescape }}">{{ html|safe }}</div>
 
   <div class="row">
     Legend:
@@ -57,9 +57,9 @@
 
 <script>{{ script|safe }}</script>
 <script>
-  const JUNCTION_VARS = {{ junction_vars|tojson }};
-  const MAP_VAR = {{ map_var|tojson }};
-  const GMAPS_DEFAULT = {{ google_maps_url|tojson }};
+  const MAP_VAR = document.getElementById("map-box").dataset.mapVar;
+  const JUNCTION_VARS = JSON.parse(document.getElementById("map-box").dataset.junctionVars);
+  const GMAPS_DEFAULT = document.getElementById("gmaps").getAttribute("href");
   const REFRESH_MS = 60000;
   const map = window[MAP_VAR];
 
@@ -76,7 +76,7 @@
     box.innerHTML = text ? esc(text) : "";
   }
   function showInfo(data) {
-    showBox("banner", data.warning || "");
+    
     const when = data.forecast_for ? new Date(data.forecast_for).toLocaleTimeString() : "";
     el("status").textContent = `Forecast for ${when} (+${data.horizon_min} min after the latest data, ` +
       `data is ${data.data_age_min == null ? "?" : data.data_age_min} min old)`;
@@ -206,8 +206,7 @@
       if (!r.ok) throw new Error(st.detail || r.statusText);
       horizons = st.horizons_min; horizon = horizons[0];
       buildHorizonButtons();
-      if (st.mode === "pipeline_test")
-        showBox("banner", `PIPELINE TEST MODE: readings are ${st.step_minutes} minutes apart but the model was trained on 15. The plumbing is real, the numbers are not an accuracy measure.`);
+      
       if (!st.ready) showBox("error", "Waiting for enough live data: " + (st.not_ready_reason || ""));
     } catch (e) { showBox("error", `Model service not reachable: ${e.message}`); return; }
     const presets = await (await fetch("/api/presets")).json();
