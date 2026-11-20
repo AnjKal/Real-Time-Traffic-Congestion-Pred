@@ -247,7 +247,8 @@ class BangaloreForecaster(object):
 
 
 def build_window_from_readings(readings, sensor_ids, seq_len=12, now=None,
-                               step_minutes=STEP_MINUTES):
+                               step_minutes=STEP_MINUTES, allow_warmup=False,
+                               fallback_speeds=None, return_warmup=False):
     """Turn raw TomTom readings into the model's 12-step input window.
 
     readings: DataFrame with columns timestamp, junction_id, currentSpeed (the same layout as
@@ -255,12 +256,16 @@ def build_window_from_readings(readings, sensor_ids, seq_len=12, now=None,
         generate_bangalore_15min_data.py they are averaged per slot, timestamps are converted
         to Asia/Kolkata (naive timestamps are treated as UTC, as in that script), and a single
         missing slot per junction is interpolated.
-    now: optional current time. Slots that have not finished yet (slot start + 15 min > now)
+    now: optional current time. Slots that have not finished yet (slot start + step_minutes > now)
         are ignored, because a half-filled slot would give a misleading average.
+    allow_warmup: allow fewer than seq_len observations and pad the missing leading steps using
+        the first available speeds. This is used only by live Kafka startup inference.
+    fallback_speeds: optional per-junction values used if a junction has no reading in the input.
+    return_warmup: append the number of padded steps to the returned pair.
 
     Returns (speeds_kmh (seq_len, n_junctions) float32, times: list of tz-aware Timestamps =
-    the START of each 15-minute slot, oldest first). Raises ValueError, naming what is
-    missing, if there are not seq_len consecutive slots with data for every junction.
+    the START of each input slot, oldest first). Without warm-up, raises ValueError if there are
+    not seq_len consecutive complete slots with data for every junction.
     """
     df = readings.copy()
     df["timestamp"] = pd.to_datetime(df["timestamp"], utc=True).dt.tz_convert(LOCAL_TZ)
@@ -283,6 +288,27 @@ def build_window_from_readings(readings, sensor_ids, seq_len=12, now=None,
         pivot = pivot[pivot.index + pd.Timedelta(minutes=step_minutes) <= now]
 
     complete = pivot.dropna(how="any")
+    if allow_warmup:
+        observed = pivot.dropna(how="all")
+        if observed.empty:
+            raise ValueError("no readings for any of the model's junctions")
+        wanted = pd.date_range(end=observed.index[-1], periods=seq_len,
+                               freq="%dmin" % step_minutes)
+        present_steps = int(observed.index.isin(wanted).sum())
+        warmup_steps = max(0, seq_len - present_steps)
+        window = pivot.reindex(wanted)
+        window = window.interpolate(method="time", limit=1, limit_area="inside")
+        window = window.ffill().bfill()
+        if fallback_speeds is not None:
+            fallback = np.asarray(fallback_speeds, dtype=np.float32)
+            if fallback.shape != (len(sensor_ids),):
+                raise ValueError("fallback_speeds must contain one value per junction")
+            window = window.fillna(dict(zip(sensor_ids, fallback)))
+        if window.isnull().values.any():
+            raise ValueError("some junctions have no reading or fallback speed")
+        result = (window.to_numpy(dtype=np.float32), list(wanted))
+        return result + (warmup_steps,) if return_warmup else result
+
     if complete.empty:
         missing_junctions = [c for c in pivot.columns if pivot[c].isna().all()]
         raise ValueError("no 15-minute slot has data for all %d junctions (junctions with no "
@@ -299,7 +325,8 @@ def build_window_from_readings(readings, sensor_ids, seq_len=12, now=None,
                [t.strftime("%H:%M") for t in missing]))
 
     window = pivot.loc[wanted]
-    return window.to_numpy(dtype=np.float32), list(wanted)
+    result = (window.to_numpy(dtype=np.float32), list(wanted))
+    return result + (0,) if return_warmup else result
 
 
 if __name__ == "__main__":

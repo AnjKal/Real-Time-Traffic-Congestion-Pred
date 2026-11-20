@@ -1,27 +1,21 @@
-"""Model service (Python 3.7 / TensorFlow 1.15): live readings in, forecasts out.
+"""HTTP model service used by the Kafka-backed live pipeline.
 
-    python model_service.py                       # real mode: readings 15 minutes apart
-    python model_service.py --step-min 2          # PIPELINE TEST: readings 2 minutes apart
-
-It reads the readings file written by collect_tomtom.py, builds the model's 12-step input
-window from the newest complete slots, runs the DCRNN once per new window, and serves:
-
-    GET /health                       service state and how much history exists
-    GET /forecast?horizon_min=30      JSON forecast for all 100 junctions, one horizon
-
-Every new window's full 12-step forecast is also saved to data/live/forecasts/ so that
-evaluate_live.py can later compare it with what TomTom actually reported.
+The raw-topic consumer calls ``ForecastEngine.process_raw_batch`` after receiving a completed
+poll. The resulting forecast is produced to ``traffic.predictions``. A separate consumer calls
+``accept_prediction``; the HTTP API serves only forecasts received from that topic.
 """
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import argparse
+import csv
+import copy
 import os
 import sys
 import threading
+from collections import OrderedDict
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 if PROJECT_ROOT not in sys.path:
@@ -31,8 +25,10 @@ import numpy as np
 import pandas as pd
 from fastapi import FastAPI, HTTPException
 
+from collect_tomtom import COLUMNS
+from kafka_topics import FORECAST_RECORD
 from predict_bangalore import (BangaloreForecaster, build_window_from_readings, LOCAL_TZ,
-                               STEP_MINUTES, BAND_COLORS, SPEED_SCALE_KMH, speed_band)
+                               STEP_MINUTES)
 
 LIVE_DIR = os.path.join(PROJECT_ROOT, "data", "live")
 READINGS_PATH = os.path.join(LIVE_DIR, "readings.csv")
@@ -44,50 +40,152 @@ TEST_MODE_WARNING = ("PIPELINE TEST: the model was trained on readings 15 minute
 
 
 class ForecastEngine(object):
-    """Turns the readings file into (cached) forecasts. Separate from FastAPI so it is testable."""
+    """Runs inference only for poll batches delivered by the raw-topic consumer."""
 
     def __init__(self, forecaster, readings_path=READINGS_PATH, forecast_dir=FORECAST_DIR):
         self.fc = forecaster
         self.readings_path = readings_path
         self.forecast_dir = forecast_dir
-        self._lock = threading.Lock()
-        self._window = None          # (slot_key, speeds, times, pred_all)
-        self._file_sig = None
+        self._lock = threading.RLock()
+        self._window = None          # (slot_key, speeds, times, pred_all, warmup_steps)
+        self._session_readings = []
+        self._session_batches = []
+        self._last_speed_by_junction = {}
+        self._processed = OrderedDict()
+        self._latest_prediction = None
 
     @property
     def step(self):
         return self.fc.step_minutes
 
-    def _read_readings(self):
-        if not os.path.exists(self.readings_path):
-            raise LookupError("no readings yet (%s does not exist). Start collect_tomtom.py."
-                              % self.readings_path)
-        return pd.read_csv(self.readings_path, usecols=["timestamp", "junction_id", "currentSpeed"])
-
     def current_window(self):
-        """(speeds, times, pred_all) for the newest complete window; recomputed only when the
-        readings file changed. Raises LookupError with a human-readable reason if not ready."""
+        """Return the last inference window; only ``process_raw_batch`` creates one."""
         with self._lock:
-            sig = None
-            if os.path.exists(self.readings_path):
-                st = os.stat(self.readings_path)
-                sig = (st.st_mtime, st.st_size)
-            if self._window is not None and sig == self._file_sig:
-                return self._window[1:]
-            readings = self._read_readings()
+            if self._window is None:
+                raise LookupError("waiting for a completed poll consumed from traffic.raw")
+            return self._window[1:4]
+
+    def process_raw_batch(self, poll_id, timestamp, readings, marker=None):
+        """Archive one consumed raw poll, run inference, and return a Kafka forecast envelope."""
+        poll_id = str(poll_id)
+        with self._lock:
+            if poll_id in self._processed:
+                return copy.deepcopy(self._processed[poll_id])
+            if not timestamp:
+                timestamp = datetime.now(tz=timezone.utc).isoformat()
+            actual = {}
+            for row in readings:
+                junction_id = str(row.get("junction_id", ""))
+                if junction_id in self.fc.sensor_ids:
+                    actual[junction_id] = row
+
+            batch_rows = []
+            imputed = 0
+            for index, junction_id in enumerate(self.fc.sensor_ids):
+                row = actual.get(junction_id)
+                speed = None
+                if row is not None:
+                    try:
+                        speed = float(row.get("currentSpeed"))
+                    except (TypeError, ValueError):
+                        speed = None
+                if speed is None:
+                    speed = self._last_speed_by_junction.get(
+                        junction_id, float(self.fc.reference_kmh[index]))
+                    imputed += 1
+                else:
+                    self._last_speed_by_junction[junction_id] = speed
+                completed_row = {column: (row.get(column) if row else None)
+                                 for column in COLUMNS}
+                completed_row.update({"timestamp": timestamp, "junction_id": junction_id,
+                                      "currentSpeed": speed})
+                batch_rows.append(completed_row)
+            self._archive_batch(batch_rows)
+            self._session_readings.extend(batch_rows)
+            max_rows = self.fc.seq_len * len(self.fc.sensor_ids)
+            self._session_readings = self._session_readings[-max_rows:]
+            self._session_batches.append(poll_id)
+            self._session_batches = self._session_batches[-self.fc.seq_len:]
+            self._window = None
+
             try:
-                speeds, times = build_window_from_readings(
-                    readings, self.fc.sensor_ids, seq_len=self.fc.seq_len,
-                    step_minutes=self.step)
-            except ValueError as e:
-                raise LookupError(str(e))
-            key = times[-1].isoformat()
-            if self._window is None or self._window[0] != key:
-                pred_all = self.fc.predict(speeds, times)
-                self._window = (key, speeds, times, pred_all)
-                self._save(times, speeds, pred_all)
-            self._file_sig = sig
-            return self._window[1:]
+                speeds, times, warmup_steps = build_window_from_readings(
+                    pd.DataFrame(self._session_readings), self.fc.sensor_ids,
+                    seq_len=self.fc.seq_len, step_minutes=self.step, allow_warmup=True,
+                    fallback_speeds=self.fc.reference_kmh, return_warmup=True)
+            except ValueError as exc:
+                raise LookupError(str(exc))
+            pred_all = self.fc.predict(speeds, times)
+            self._window = (times[-1].isoformat(), speeds, times, pred_all, warmup_steps)
+            self._save(times, speeds, pred_all)
+            message = self._prediction_message(
+                poll_id, timestamp, readings, marker or {}, imputed, speeds, times, pred_all,
+                warmup_steps)
+            self._processed[poll_id] = copy.deepcopy(message)
+            while len(self._processed) > 24:
+                self._processed.popitem(last=False)
+            return message
+
+    def _archive_batch(self, rows):
+        folder = os.path.dirname(self.readings_path)
+        if folder and not os.path.isdir(folder):
+            os.makedirs(folder)
+        new_file = not os.path.exists(self.readings_path)
+        with open(self.readings_path, "a", newline="") as output:
+            writer = csv.DictWriter(output, fieldnames=COLUMNS, extrasaction="ignore",
+                                    lineterminator="\n")
+            if new_file:
+                writer.writeheader()
+            writer.writerows(rows)
+
+    def _prediction_message(self, poll_id, timestamp, readings, marker, imputed,
+                            speeds, times, pred_all, warmup_steps):
+        made_at = datetime.now().isoformat(timespec="seconds")
+        expected = max(1, len(self.fc.sensor_ids))
+        actual_count = len(set(str(row.get("junction_id")) for row in readings
+                                if row.get("currentSpeed") is not None))
+        coverage = round(100.0 * actual_count / expected, 1)
+        forecasts = {}
+        for horizon_min in self.fc.horizon_minutes:
+            result = self.fc.forecast_from_prediction(pred_all, speeds, times, horizon_min)
+            result.update({"made_at": made_at, "step_minutes": self.step,
+                           "horizons_min": self.fc.horizon_minutes,
+                           "mode": "live" if self.step == STEP_MINUTES else "pipeline_test",
+                           "input_window_steps": self.fc.seq_len,
+                           "warmup_steps": int(warmup_steps),
+                           "input_batches": len(self._session_batches),
+                           "sensor_coverage_pct": coverage,
+                           "imputed_junctions": int(imputed)})
+            slot_end = pd.Timestamp(times[-1]) + pd.Timedelta(minutes=self.step)
+            now = pd.Timestamp.now(tz=LOCAL_TZ)
+            result["data_age_min"] = round(max(0.0, (now - slot_end).total_seconds() / 60.0), 1)
+            if self.step != STEP_MINUTES:
+                result["warning"] = TEST_MODE_WARNING % self.step
+            if warmup_steps:
+                result["warmup_warning"] = (
+                    "Warm-up forecast: %d of %d model input steps are padded from the first "
+                    "available readings." % (warmup_steps, self.fc.seq_len))
+            forecasts[str(horizon_min)] = result
+        return {"record_type": FORECAST_RECORD, "schema_version": 1,
+                "poll_id": poll_id, "timestamp": timestamp, "made_at": made_at,
+                "successful_count": actual_count,
+                "expected_count": int(marker.get("expected_count", expected)),
+                "sensor_coverage_pct": coverage, "imputed_junctions": int(imputed),
+                "warmup_steps": int(warmup_steps),
+                "input_batches": len(self._session_batches), "forecasts": forecasts}
+
+    def accept_prediction(self, message):
+        """Cache a forecast only after the predictions-topic consumer receives it."""
+        if message.get("record_type") != FORECAST_RECORD:
+            return
+        with self._lock:
+            self._latest_prediction = copy.deepcopy(message)
+
+    def _latest(self):
+        with self._lock:
+            if self._latest_prediction is None:
+                raise LookupError("waiting for a forecast consumed from traffic.predictions")
+            return copy.deepcopy(self._latest_prediction)
 
     def _save(self, times, speeds, pred_all):
         if not os.path.isdir(self.forecast_dir):
@@ -99,17 +197,10 @@ class ForecastEngine(object):
                  horizon_minutes=np.array(self.fc.horizon_minutes))
 
     def forecast(self, horizon_min):
-        speeds, times, pred_all = self.current_window()
-        result = self.fc.forecast_from_prediction(pred_all, speeds, times, horizon_min)
-        result["made_at"] = datetime.now().isoformat(timespec="seconds")
-        result["step_minutes"] = self.step
-        result["horizons_min"] = self.fc.horizon_minutes
-        result["mode"] = "live" if self.step == STEP_MINUTES else "pipeline_test"
-        if self.step != STEP_MINUTES:
-            result["warning"] = TEST_MODE_WARNING % self.step
-        slot_end = pd.Timestamp(times[-1]) + pd.Timedelta(minutes=self.step)
-        now = pd.Timestamp.now(tz=LOCAL_TZ)
-        result["data_age_min"] = round(max(0.0, (now - slot_end).total_seconds() / 60.0), 1)
+        message = self._latest()
+        result = message.get("forecasts", {}).get(str(int(horizon_min)))
+        if result is None:
+            raise LookupError("no forecast for horizon %s in traffic.predictions" % horizon_min)
         return result
 
     def find_junction(self, query):
@@ -136,32 +227,36 @@ class ForecastEngine(object):
         """Current forecast for ONE junction, all horizons, from the newest window.
         Raises LookupError if there is not enough live data yet."""
         i = self.find_junction(query)
-        speeds, times, pred_all = self.current_window()
-        ref = float(self.fc.reference_kmh[i])
-        last = pd.Timestamp(times[-1])
-        horizons = []
-        for k, minutes in enumerate(self.fc.horizon_minutes):
-            p = float(pred_all[k, i])
-            band = speed_band(p / ref, self.fc.band_thresholds)
-            horizons.append({"minutes_ahead": minutes,
-                             "forecast_for": (last + pd.Timedelta(minutes=minutes)).isoformat(),
-                             "predicted_kmh": round(p, 2), "band": band,
-                             "color": BAND_COLORS[band]})
-        node = {"junction_id": self.fc.sensor_ids[i],
-                "current_kmh": round(float(np.clip(speeds[-1, i], 0.0, SPEED_SCALE_KMH)), 2),
-                "reference_kmh": round(ref, 2), "input_last_slot": last.isoformat(),
-                "data_age_min": round(max(0.0, (pd.Timestamp.now(tz=LOCAL_TZ)
-                                                - (last + pd.Timedelta(minutes=self.step))
-                                                ).total_seconds() / 60.0), 1),
-                "step_minutes": self.step,
-                "mode": "live" if self.step == STEP_MINUTES else "pipeline_test",
-                "horizons": horizons}
+        message = self._latest()
+        first_horizon = str(self.fc.horizon_minutes[0])
+        first = message["forecasts"][first_horizon]
+        node = next((dict(item) for item in first["nodes"]
+                     if item["junction_id"] == self.fc.sensor_ids[i]), None)
+        if node is None:
+            raise LookupError("junction missing from the latest prediction")
+        node.update({"input_last_slot": first["input_last_slot"],
+                     "data_age_min": first.get("data_age_min"),
+                     "step_minutes": self.step, "mode": first.get("mode"),
+                     "warmup_steps": first.get("warmup_steps"),
+                     "sensor_coverage_pct": first.get("sensor_coverage_pct"),
+                     "horizons": []})
+        for horizon_min in self.fc.horizon_minutes:
+            forecast = message["forecasts"][str(horizon_min)]
+            result_node = next(item for item in forecast["nodes"]
+                               if item["junction_id"] == self.fc.sensor_ids[i])
+            node["horizons"].append({"minutes_ahead": horizon_min,
+                                     "forecast_for": forecast["forecast_for"],
+                                     "predicted_kmh": result_node["predicted_kmh"],
+                                     "band": result_node["band"],
+                                     "color": result_node["color"]})
         if self.fc.spots is not None:
             row = self.fc.spots.iloc[i]
             node.update({"name": str(row["name"]), "area": str(row["area"]),
                          "lat": float(row["lat"]), "lon": float(row["lon"])})
-        if self.step != STEP_MINUTES:
-            node["warning"] = TEST_MODE_WARNING % self.step
+        if first.get("warning"):
+            node["warning"] = first["warning"]
+        if first.get("warmup_warning"):
+            node["warmup_warning"] = first["warmup_warning"]
         return node
 
     def list_junctions(self):
@@ -174,17 +269,16 @@ class ForecastEngine(object):
         info = {"status": "ok", "step_minutes": self.step,
                 "mode": "live" if self.step == STEP_MINUTES else "pipeline_test",
                 "horizons_min": self.fc.horizon_minutes, "ready": False,
-                "slots_needed": self.fc.seq_len}
-        if os.path.exists(self.readings_path):
-            df = self._read_readings()
-            info["reading_rows"] = int(len(df))
-            info["distinct_batches"] = int(df["timestamp"].nunique())
+                "slots_needed": 1}
         try:
-            _, times, _ = self.current_window()
-            info["ready"] = True
-            info["newest_slot"] = times[-1].isoformat()
-        except LookupError as e:
-            info["not_ready_reason"] = str(e)
+            latest = self._latest()
+            info.update({"ready": True, "newest_slot": latest.get("timestamp"),
+                         "latest_poll_id": latest.get("poll_id"),
+                         "warmup_steps": latest.get("warmup_steps"),
+                         "input_batches": latest.get("input_batches"),
+                         "sensor_coverage_pct": latest.get("sensor_coverage_pct")})
+        except LookupError as exc:
+            info["not_ready_reason"] = str(exc)
         return info
 
 
@@ -245,21 +339,8 @@ def create_app(engine=None, step_minutes=STEP_MINUTES, readings_path=READINGS_PA
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__,
-                                     formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--step-min", type=int, default=STEP_MINUTES,
-                        help="minutes between readings (15 = real; 2 = pipeline test)")
-    parser.add_argument("--port", type=int, default=8001)
-    parser.add_argument("--readings", default=READINGS_PATH, help="readings CSV to read")
-    parser.add_argument("--forecast-dir", default=FORECAST_DIR, help="where forecasts are saved")
-    args = parser.parse_args()
-    import uvicorn
-    if args.step_min != STEP_MINUTES:
-        print("*** PIPELINE TEST MODE (%d-minute readings): not a measure of model accuracy ***"
-              % args.step_min)
-    app = create_app(step_minutes=args.step_min, readings_path=args.readings,
-                     forecast_dir=args.forecast_dir)
-    uvicorn.run(app, host="127.0.0.1", port=args.port, log_level="info")
+    from start_pipeline import main as start_live_pipeline
+    return start_live_pipeline()
 
 
 if __name__ == "__main__":

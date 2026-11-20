@@ -1,0 +1,10 @@
+.git
+.env
+.venv/
+.venv37/
+.venv-web/
+__pycache__/
+*.py[cod]
+data/live/
+data/graph/
+logs/

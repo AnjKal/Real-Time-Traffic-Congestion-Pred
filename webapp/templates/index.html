@@ -71,7 +71,7 @@
   const MAP_VAR = document.getElementById("map-box").dataset.mapVar;
   const JUNCTION_VARS = JSON.parse(document.getElementById("map-box").dataset.junctionVars);
   const GMAPS_DEFAULT = document.getElementById("gmaps").getAttribute("href");
-  const REFRESH_MS = 60000;
+  const REFRESH_MS = 120000;
   const map = window[MAP_VAR];
   if (!map) {
     fail("The map did not load. Its libraries come from the internet (cdn.jsdelivr.net, code.jquery.com, " +
@@ -93,8 +93,12 @@
   }
   function showInfo(data) {
     const when = data.forecast_for ? new Date(data.forecast_for).toLocaleTimeString() : "";
-    el("status").textContent = `Forecast for ${when} (+${data.horizon_min} min after the latest data, ` +
-      `data is ${data.data_age_min == null ? "?" : data.data_age_min} min old)`;
+    const warmup = data.warmup_steps
+      ? ` · warm-up: ${data.warmup_steps}/${data.input_window_steps || "?"} steps padded` : "";
+    const coverage = data.sensor_coverage_pct == null ? "" : ` · ${data.sensor_coverage_pct}% sensor coverage`;
+    const mode = data.mode === "pipeline_test" ? " · 2-minute test cadence" : "";
+    el("status").textContent = `Forecast for ${when} (+${data.horizon_min} min after latest data, ` +
+      `data is ${data.data_age_min == null ? "?" : data.data_age_min} min old)${warmup}${coverage}${mode}`;
   }
 
   // ------------------------------------------------------------------ junction circles

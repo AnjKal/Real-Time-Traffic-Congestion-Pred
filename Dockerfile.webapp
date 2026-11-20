@@ -1,0 +1,10 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+COPY requirements_webapp.txt ./
+RUN pip install --no-cache-dir -r requirements_webapp.txt
+COPY . .
+
+ENV MODEL_SERVICE_URL=http://pipeline:8001
+ENV PYTHONUNBUFFERED=1
+CMD ["python", "run_webapp.py", "--host", "0.0.0.0", "--port", "8010"]

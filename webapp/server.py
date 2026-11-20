@@ -70,7 +70,7 @@ def create_app(model_service_url=None, graph=None, spots=None):
             r = requests.get(url + path, params=params, timeout=20)
         except requests.RequestException:
             raise HTTPException(502, "Cannot reach the model service at %s. Start it with: "
-                                     "python model_service.py" % url)
+                                     "docker compose up -d" % url)
         if r.status_code != 200:
             try:
                 detail = r.json().get("detail", r.text)
@@ -137,6 +137,10 @@ def create_app(model_service_url=None, graph=None, spots=None):
             p["rank"] = rank
         return {"horizon_min": req.horizon_min, "mode": forecast_json.get("mode"),
                 "warning": forecast_json.get("warning"),
+                "warmup_steps": forecast_json.get("warmup_steps"),
+                "input_window_steps": forecast_json.get("input_window_steps"),
+                "warmup_warning": forecast_json.get("warmup_warning"),
+                "sensor_coverage_pct": forecast_json.get("sensor_coverage_pct"),
                 "input_last_slot": forecast_json["input_last_slot"],
                 "forecast_for": forecast_json["forecast_for"],
                 "data_age_min": forecast_json.get("data_age_min"), "paths": scored}
