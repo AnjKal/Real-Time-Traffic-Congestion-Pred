@@ -24,6 +24,23 @@
     .route { flex: 1 1 280px; border: 1px solid #ccc; border-radius: 6px; padding: 8px 12px; margin: 6px 0; cursor: pointer; }
     .route.sel { border-color: #1f618d; box-shadow: 0 0 0 2px #1f618d33; }
     .muted { color: #777; font-size: 13px; }
+    /* Route-segment hover card (Leaflet tooltip). .seg-* names avoid folium/Bootstrap clashes. */
+    .leaflet-tooltip.seg-tooltip { padding: 0; border: none; background: none; box-shadow: none; }
+    .leaflet-tooltip.seg-tooltip::before { display: none; }           /* no default arrow */
+    .seg-card { font: 13px/1.45 -apple-system, "Segoe UI", sans-serif; color: #1c2733;
+      background: #fff; border: 1px solid #cfd6de; border-radius: 8px; padding: 9px 11px;
+      min-width: 190px; max-width: 272px; box-shadow: 0 2px 8px #0000002e; white-space: normal; }
+    .seg-title { font-weight: 600; font-size: 14px; }
+    .seg-sub { color: #6b7681; font-size: 12px; margin: 1px 0 7px; }
+    .seg-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px;
+      font-weight: 600; text-transform: capitalize; margin-bottom: 8px; }
+    .seg-dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block;
+      border: 1px solid #00000026; flex: none; }
+    .seg-grid { display: grid; grid-template-columns: 1fr auto; gap: 3px 14px; }
+    .seg-k { color: #5a6671; }
+    .seg-v { font-weight: 600; text-align: right; white-space: nowrap; }
+    .seg-warn { margin-top: 8px; padding: 5px 8px; background: #fdf3e3; border: 1px solid #e3b872;
+      border-radius: 6px; color: #8a5600; font-size: 11.5px; line-height: 1.35; }
   </style>
 </head>
 <body>
@@ -85,6 +102,34 @@
   const el = id => document.getElementById(id);
   const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const fmt = p => `${p.lat.toFixed(4)}, ${p.lon.toFixed(4)}`;
+
+  // A finite number formatted for display, or "N/A" for null/undefined/invalid.
+  const metric = (v, unit = "", digits = 0) =>
+    (v === null || v === undefined || Number.isNaN(Number(v)))
+      ? "N/A" : `${Number(v).toFixed(digits)}${unit}`;
+
+  // Compact, professional hover card for one route segment. All dynamic text is escaped.
+  function segmentCard(s) {
+    const distKm = (s.distance_to_junction_m === null || s.distance_to_junction_m === undefined)
+      ? "N/A" : `${(s.distance_to_junction_m / 1000).toFixed(1)} km`;
+    const delay = (s.delay_min === null || s.delay_min === undefined || Number.isNaN(Number(s.delay_min)))
+      ? "N/A" : `+${Number(s.delay_min).toFixed(1)} min`;
+    const band = s.band ? esc(s.band) : "N/A";
+    const warn = s.extrapolated
+      ? `<div class="seg-warn">&#9888; Nearest sensor is ${esc(distKm)} away (over 3&nbsp;km). ` +
+        `These values are borrowed from a distant junction and may not represent this road accurately.</div>`
+      : "";
+    return `<div class="seg-card">
+        <div class="seg-title">${esc(s.name || "(unnamed road)")}</div>
+        <div class="seg-sub">near <b>${esc(s.junction_name || "unknown junction")}</b> &middot; ${esc(distKm)} away</div>
+        <span class="seg-chip"><span class="seg-dot" style="background:${esc(s.color || "#95a5a6")}"></span>${band}</span>
+        <div class="seg-grid">
+          <span class="seg-k">Current speed</span><span class="seg-v">${metric(s.current_speed_kmh, " km/h")}</span>
+          <span class="seg-k">Predicted speed</span><span class="seg-v">${metric(s.predicted_speed_kmh, " km/h")}</span>
+          <span class="seg-k">Delay vs usual speed</span><span class="seg-v">${esc(delay)}</span>
+        </div>${warn}
+      </div>`;
+  }
 
   function showBox(id, text) {
     const box = el(id);
@@ -162,9 +207,7 @@
       const lines = p.segments.map(s => L.polyline(s.geometry, {
           color: s.color, weight: 4, opacity: 0.5, dashArray: s.extrapolated ? "6 6" : null,
           bubblingMouseEvents: false }).addTo(map)
-        .bindTooltip(`<b>${esc(s.name || "(unnamed road)")}</b><br>nearest junction: ${esc(s.junction_name)} ` +
-          `(${(s.distance_to_junction_m / 1000).toFixed(1)} km)<br>predicted ${s.predicted_speed_kmh.toFixed(0)} km/h - ${s.band}`,
-          { sticky: true })
+        .bindTooltip(segmentCard(s), { sticky: true, className: "seg-tooltip", direction: "top", offset: [0, -8] })
         .on("click", () => { selectedRank = p.rank; restyle(); }));
       drawn.push({ rank: p.rank, lines });
     }

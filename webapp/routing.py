@@ -102,6 +102,33 @@ def _midpoint(geometry):
     return geometry[len(geometry) // 2]
 
 
+def _num(value):
+    """A finite float, or None if the value is missing/invalid (so a bad reading becomes a
+    null metric on the segment instead of crashing the route response)."""
+    try:
+        result = float(value)
+    except (TypeError, ValueError):
+        return None
+    return result if np.isfinite(result) else None
+
+
+def _segment_delay_min(length_m, predicted_kmh, reference_kmh):
+    """Extra minutes to drive this segment at the predicted speed versus the model's historical
+    reference speed (NOT TomTom free-flow). None if either speed is missing; never negative.
+
+        max(0, (km / max(predicted, 2) - km / max(reference, 2)) * 60)
+    """
+    if predicted_kmh is None or reference_kmh is None:
+        return None
+    length_km = _num(length_m)
+    if length_km is None:
+        return None
+    length_km /= 1000.0
+    at_predicted = length_km / max(predicted_kmh, 2.0)
+    at_reference = length_km / max(reference_kmh, 2.0)
+    return round(max(0.0, (at_predicted - at_reference) * 60.0), 1)
+
+
 def colorize_path(edges, junctions):
     """One segment per road edge, taking speed/band/color from the NEAREST junction.
 
@@ -116,12 +143,20 @@ def colorize_path(edges, junctions):
         d = _haversine_m(mlat, mlon, jl, jn)
         i = int(np.argmin(d))
         j = junctions[i]
+        # Current (last observed TomTom currentSpeed) and the model's historical reference speed
+        # carried onto the segment for the hover card. reference_speed_kmh is NOT TomTom free-flow.
+        current_speed = _num(j.get("current_kmh"))
+        reference_speed = _num(j.get("reference_kmh"))
+        predicted_speed = _num(j.get("predicted_kmh"))
         segments.append({
             "geometry": [list(p) for p in e["geometry"]], "name": e["name"],
             "highway": e["highway"], "length_m": e["length_m"],
             "junction_id": j["junction_id"], "junction_name": j.get("name", j["junction_id"]),
             "distance_to_junction_m": int(round(d[i])),
             "predicted_speed_kmh": j["predicted_kmh"], "band": j["band"], "color": j["color"],
+            "current_speed_kmh": current_speed,
+            "reference_speed_kmh": reference_speed,
+            "delay_min": _segment_delay_min(e["length_m"], predicted_speed, reference_speed),
             "extrapolated": bool(d[i] > FAR_JUNCTION_M)})
     return segments
 
