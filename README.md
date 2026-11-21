@@ -1,9 +1,15 @@
 # Bangalore real-time traffic forecast
 
 The project polls TomTom every **2 minutes**, writes readings to Kafka, consumes each completed
-poll before running the DCRNN, and publishes forecasts back to Kafka. The map and routing page
-continues to use the HTTP API, whose forecast state is populated by a consumer of the predictions
-topic.
+poll before running the DCRNN, and publishes forecasts back to Kafka. A feature aggregator joins
+readings and forecasts per poll and publishes area-wise statistics to a third topic. The map and
+routing page uses the HTTP API, whose forecast state is populated by a consumer of the predictions
+topic; it adds free-flow-aware route hover cards and an area-wise dashboard.
+
+> **Note on nodes:** keep two different "nodes" distinct. The DCRNN models **100 traffic junctions**
+> (`J001`–`J100`, one per row of `bangalore_traffic_spots.csv`). The router works on a separate
+> **OSM road-graph** of intersections; each road segment borrows traffic values from its *nearest*
+> junction.
 
 ## Requirements
 
@@ -53,11 +59,42 @@ Docker Compose creates these application topics before starting the pipeline:
 
 - `traffic.raw`: one JSON reading per junction, followed by a poll-complete marker.
 - `traffic.predictions`: one JSON forecast envelope per consumed poll, with all forecast horizons.
+- `traffic.features`: one JSON **area-wise** aggregation per poll (see schema below).
 
-The raw consumer batches readings by poll ID, archives the completed batch to
-`data/live/readings.csv`, and only then runs inference. The prediction consumer reads the forecast
-envelope from `traffic.predictions` and supplies the HTTP API. Kafka consumer offsets are committed
-after processing; raw offsets are committed only after a poll-complete marker is handled.
+The raw consumer (group `traffic-model`) batches readings by poll ID, archives the completed batch
+to `data/live/readings.csv`, and only then runs inference. The prediction consumer (group
+`traffic-dashboard`) reads the forecast envelope from `traffic.predictions` and supplies the HTTP
+API. Kafka consumer offsets are committed after processing; raw offsets are committed only after a
+poll-complete marker is handled.
+
+The **feature aggregator** (`feature_aggregator.py`) adds two more consumers on **dedicated groups**
+so it never disturbs the DCRNN raw consumer: a raw consumer (group `traffic-features-raw`) collects
+each poll's TomTom `currentSpeed`/`freeFlowSpeed`, and a predictions consumer (group
+`traffic-features`) joins them **by `poll_id`** with the DCRNN predicted speed and band, aggregates
+by area, and publishes one `area_features` message to `traffic.features`. Duplicate predictions for
+a poll already processed are ignored, and readings from different polls are never mixed. The latest
+envelope is also written atomically to `data/live/features.json`, which the web app serves at
+`GET /api/features` for the area-wise dashboard.
+
+### `traffic.features` message schema (`record_type: "area_features"`, `schema_version: 1`)
+
+```
+poll_id, timestamp, made_at, step_minutes, data_age_min,
+sensor_coverage_pct,            # overall % of the 100 junctions with a live reading this poll
+area_count,
+areas: [ {
+  area,                         # area name from bangalore_traffic_spots.csv
+  total_junction_count,         # modeled junctions in this area
+  reporting_junction_count,     # junctions with a real TomTom reading this poll
+  sensor_coverage_pct,
+  avg_current_speed_kmh,        # mean TomTom currentSpeed of reporting junctions (null if none)
+  avg_free_flow_speed_kmh,      # mean TomTom freeFlowSpeed (null if none)
+  avg_predicted_speed_kmh,      # mean DCRNN predicted speed
+  congestion_distribution: { free, moderate, heavy },   # junction counts
+  overall_congestion_level,     # majority band; ties resolve to the more severe band
+  avg_delay_min_per_km          # mean of max(0, 60/predicted - 60/free_flow) per km (null if none)
+} ]
+```
 
 List topics and inspect the pipeline logs:
 
@@ -71,7 +108,49 @@ Optionally read a few raw and prediction messages:
 ```powershell
 docker compose exec kafka kafka-console-consumer --bootstrap-server kafka:29092 --topic traffic.raw --from-beginning --max-messages 3
 docker compose exec kafka kafka-console-consumer --bootstrap-server kafka:29092 --topic traffic.predictions --from-beginning --max-messages 1
+docker compose exec kafka kafka-console-consumer --bootstrap-server kafka:29092 --topic traffic.features --from-beginning --max-messages 1
 ```
+
+## Speed metrics and the delay calculation
+
+The UI deliberately distinguishes four different speeds, which must not be conflated:
+
+| Metric | Source | Meaning |
+| --- | --- | --- |
+| **Current speed** | TomTom `currentSpeed` (`traffic.raw`) | live measured speed now |
+| **Free-flow speed** | TomTom `freeFlowSpeed` (`traffic.raw`) | the road's uncongested speed, measured by TomTom |
+| **Reference speed** | 90th percentile of training speeds (`reference_kmh`) | the model's *historical usual* speed — **not** TomTom free-flow |
+| **Predicted speed** | DCRNN (`traffic.predictions`) | forecast speed at the chosen horizon |
+
+**Route hover cards** show current, free-flow (TomTom), predicted, congestion band, the nearest
+junction and its distance, and an estimated delay. The **delay baseline is actual TomTom free-flow**:
+
+```
+delay_min = max(0, (length_m/1000 / predicted_speed_kmh - length_m/1000 / free_flow_speed_kmh) * 60)
+```
+
+If free-flow is unavailable for a segment's junction the delay shows `N/A` — `reference_kmh` is never
+substituted for it. A dashed segment and a warning appear when the nearest junction is over 3 km
+away (the colour is extrapolated). The free-flow value is read read-only from `data/live/readings.csv`
+(the latest valid reading per junction), so no Kafka, collector, or model code is involved.
+
+The **area-wise dashboard** below the map lists each area's current / free-flow / predicted average
+speed, congestion level, average delay per km, reporting junction count, coverage, and update time,
+with stale-data and missing-data states.
+
+## Testing
+
+Pure-logic tests (no Kafka/model/Docker) run in the web-app Python (3.10+):
+
+```powershell
+python -m pytest test_stage2_features.py -v
+```
+
+They cover free-flow propagation, the delay formula and its handling of missing/zero/invalid
+speeds, latest-free-flow extraction from the readings CSV, junction-to-area mapping, and area
+feature aggregation (averages, congestion distribution, coverage, missing readings, duplicate and
+cross-poll protection). The existing `test_webapp_offline.py` additionally needs `httpx`
+(`pip install httpx`) because it uses Starlette's `TestClient`.
 
 ## Stop and restart
 
@@ -93,6 +172,8 @@ key. The dashboard is available while the services run in the background. Use
 
 ## Services
 
-- `pipeline`: DCRNN, TomTom collector, raw-topic consumer, predictions producer and consumer, HTTP API.
-- `webapp`: map, forecast display, and route comparison UI.
-- `kafka`: persistent single-node KRaft broker with the two application topics.
+- `pipeline`: DCRNN, TomTom collector, raw-topic consumer, predictions producer and consumer, the
+  feature aggregator (`traffic.features`), and the HTTP API.
+- `webapp`: map, forecast display, route comparison UI, and the area-wise dashboard.
+- `kafka`: persistent single-node KRaft broker with the three application topics
+  (`traffic.raw`, `traffic.predictions`, `traffic.features`).

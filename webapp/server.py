@@ -8,7 +8,9 @@ Endpoints
     GET  /api/forecast?horizon_min= forecast for all junctions (proxied from the model service)
     POST /api/route                 {src_lat, src_lon, dst_lat, dst_lon, horizon_min, k_paths}
     GET  /api/presets               one-click source/destination pairs
+    GET  /api/features              area-wise aggregated traffic (from traffic.features)
 """
+import json
 import os
 
 import folium
@@ -19,8 +21,11 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
-from webapp import routing
+from webapp import live_readings, routing
 from webapp.osm_graph import PROJECT_ROOT, SPOTS_PATH, get_graph
+
+# Latest area-wise features, written by the feature aggregator to the shared data volume.
+FEATURES_PATH = os.path.join(PROJECT_ROOT, "data", "live", "features.json")
 
 MODEL_SERVICE_URL = os.environ.get("MODEL_SERVICE_URL", "http://127.0.0.1:8001")
 TEMPLATES = Jinja2Templates(directory=os.path.join(PROJECT_ROOT, "webapp", "templates"))
@@ -128,9 +133,12 @@ def create_app(model_service_url=None, graph=None, spots=None):
                 road_graph(), (req.src_lat, req.src_lon), (req.dst_lat, req.dst_lon), req.k_paths)
         except routing.RoutingError as e:
             raise HTTPException(400, str(e))
+        # Latest TomTom free-flow speed per junction (read-only from the readings archive). Never
+        # substituted by reference_kmh; absent values just leave free_flow_speed_kmh/delay null.
+        free_flow, free_flow_as_of = live_readings.latest_free_flow_by_junction()
         scored = []
         for edges in candidate_paths:
-            segments = routing.colorize_path(edges, junctions)
+            segments = routing.colorize_path(edges, junctions, free_flow_by_junction=free_flow)
             scored.append({**routing.path_score(segments), "segments": segments})
         scored.sort(key=lambda p: p["total_time_min"])
         for rank, p in enumerate(scored, start=1):
@@ -143,7 +151,22 @@ def create_app(model_service_url=None, graph=None, spots=None):
                 "sensor_coverage_pct": forecast_json.get("sensor_coverage_pct"),
                 "input_last_slot": forecast_json["input_last_slot"],
                 "forecast_for": forecast_json["forecast_for"],
+                "free_flow_as_of": free_flow_as_of,
                 "data_age_min": forecast_json.get("data_age_min"), "paths": scored}
+
+    @app.get("/api/features")
+    def features():
+        """Latest area-wise aggregated traffic from the traffic.features topic (written by the
+        feature aggregator to data/live/features.json). 503 until the first batch is produced."""
+        try:
+            with open(FEATURES_PATH, "r") as handle:
+                payload = json.load(handle)
+        except FileNotFoundError:
+            raise HTTPException(503, "No area features yet. The feature aggregator publishes to "
+                                     "traffic.features after the first consumed poll.")
+        except (ValueError, OSError):
+            raise HTTPException(503, "Area features are being written; try again shortly.")
+        return payload
 
     return app
 

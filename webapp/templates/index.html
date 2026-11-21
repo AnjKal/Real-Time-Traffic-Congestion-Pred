@@ -41,6 +41,26 @@
     .seg-v { font-weight: 600; text-align: right; white-space: nowrap; }
     .seg-warn { margin-top: 8px; padding: 5px 8px; background: #fdf3e3; border: 1px solid #e3b872;
       border-radius: 6px; color: #8a5600; font-size: 11.5px; line-height: 1.35; }
+    /* Area-wise dashboard (traffic.features). Kept below the map so the map stays uncrowded. */
+    #area-panel { margin: 14px 0; }
+    #area-panel h2 { font-size: 1.1rem; margin: 0 0 2px; }
+    #area-head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; margin-bottom: 6px; }
+    #area-updated { color: #6b7681; font-size: 12.5px; }
+    #area-stale { display: none; color: #8a5600; background: #fdf3e3; border: 1px solid #e3b872;
+      border-radius: 6px; padding: 3px 8px; font-size: 12px; }
+    #area-filter { padding: 5px 9px; border: 1px solid #aaa; border-radius: 6px; font-size: 13px; }
+    #area-state { color: #6b7681; font-size: 13px; padding: 8px 0; }
+    #area-scroll { max-height: 320px; overflow: auto; border: 1px solid #ddd; border-radius: 8px; }
+    table.area-tbl { border-collapse: collapse; width: 100%; font-size: 13px; }
+    table.area-tbl th, table.area-tbl td { padding: 6px 9px; text-align: right; white-space: nowrap;
+      border-bottom: 1px solid #eee; }
+    table.area-tbl th { position: sticky; top: 0; background: #f6f8fa; z-index: 1; font-weight: 600;
+      color: #444; text-align: right; }
+    table.area-tbl th:first-child, table.area-tbl td:first-child { text-align: left; }
+    table.area-tbl td.lvl { text-align: left; }
+    .lvl-chip { display: inline-flex; align-items: center; gap: 5px; text-transform: capitalize; }
+    .lvl-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; border: 1px solid #0003; }
+    @media (max-width: 640px) { table.area-tbl th:nth-child(4), table.area-tbl td:nth-child(4) { display: none; } }
   </style>
 </head>
 <body>
@@ -70,6 +90,25 @@
     <span class="muted">Road colours come from the nearest of the 100 junctions (the circles); dashed = more than 3 km from any junction.</span>
   </div>
 
+  <section id="area-panel">
+    <div id="area-head">
+      <h2>Area-wise traffic</h2>
+      <span id="area-updated"></span>
+      <span id="area-stale"></span>
+      <input id="area-filter" type="search" placeholder="Filter area&hellip;" autocomplete="off">
+    </div>
+    <div id="area-state">Loading area summary&hellip;</div>
+    <div id="area-scroll" style="display:none"><table class="area-tbl">
+      <thead><tr>
+        <th>Area</th><th>Congestion</th><th>Current</th><th>Free-flow</th><th>Predicted</th>
+        <th>Delay/km</th><th>Reporting</th><th>Coverage</th>
+      </tr></thead><tbody id="area-rows"></tbody>
+    </table></div>
+    <div class="muted" style="margin-top:4px">Aggregated from the <code>traffic.features</code> topic.
+      Current = TomTom live speed · Free-flow = TomTom uncongested speed · Predicted = DCRNN forecast.
+      Delay/km = extra minutes per km at the predicted speed versus free-flow.</div>
+  </section>
+
   <div><a id="gmaps" href="{{ google_maps_url }}" target="_blank" rel="noopener">Open Google Maps traffic layer for this corridor</a></div>
 </main>
 
@@ -89,6 +128,10 @@
   const JUNCTION_VARS = JSON.parse(document.getElementById("map-box").dataset.junctionVars);
   const GMAPS_DEFAULT = document.getElementById("gmaps").getAttribute("href");
   const REFRESH_MS = 120000;
+  const BAND_COLORS = { free: "#2ecc71", moderate: "#f1c40f", heavy: "#e74c3c", unknown: "#95a5a6" };
+  const STALE_MIN = 10;          // flag area data older than this many minutes
+  let areaFilter = "";           // current area-table filter text
+  let lastFeatures = null;       // last /api/features payload, for re-filtering without refetch
   const map = window[MAP_VAR];
   if (!map) {
     fail("The map did not load. Its libraries come from the internet (cdn.jsdelivr.net, code.jquery.com, " +
@@ -125,8 +168,9 @@
         <span class="seg-chip"><span class="seg-dot" style="background:${esc(s.color || "#95a5a6")}"></span>${band}</span>
         <div class="seg-grid">
           <span class="seg-k">Current speed</span><span class="seg-v">${metric(s.current_speed_kmh, " km/h")}</span>
+          <span class="seg-k">Free-flow (TomTom)</span><span class="seg-v">${metric(s.free_flow_speed_kmh, " km/h")}</span>
           <span class="seg-k">Predicted speed</span><span class="seg-v">${metric(s.predicted_speed_kmh, " km/h")}</span>
-          <span class="seg-k">Delay vs usual speed</span><span class="seg-v">${esc(delay)}</span>
+          <span class="seg-k">Estimated delay vs free-flow</span><span class="seg-v">${esc(delay)}</span>
         </div>${warn}
       </div>`;
   }
@@ -240,6 +284,78 @@
     finally { btn.disabled = false; btn.textContent = "Compute Routes"; }
   }
 
+  // ------------------------------------------------------------------ area-wise dashboard
+  const SEVERITY = { heavy: 3, moderate: 2, free: 1, unknown: 0 };
+  function levelChip(level) {
+    const lv = esc(level || "unknown");
+    return `<span class="lvl-chip"><span class="lvl-dot" style="background:${BAND_COLORS[level] || BAND_COLORS.unknown}"></span>${lv}</span>`;
+  }
+  function renderAreas(data) {
+    const updated = el("area-updated"), stale = el("area-stale");
+    const scroll = el("area-scroll"), stateBox = el("area-state");
+    if (!data || !Array.isArray(data.areas) || data.areas.length === 0) {
+      scroll.style.display = "none";
+      stateBox.style.display = "block";
+      stateBox.textContent = "No area data yet.";
+      updated.textContent = ""; stale.style.display = "none";
+      return;
+    }
+    const when = data.made_at ? new Date(data.made_at).toLocaleTimeString() : "";
+    const age = (data.data_age_min == null) ? null : Number(data.data_age_min);
+    updated.textContent = `Updated ${when}${age == null ? "" : ` · data ${age} min old`} · ${data.sensor_coverage_pct}% sensors reporting`;
+    if (age != null && age > STALE_MIN) {
+      stale.style.display = "inline-block";
+      stale.textContent = `⚠ Data is ${age} min old — may be stale`;
+    } else stale.style.display = "none";
+
+    const f = areaFilter.trim().toLowerCase();
+    const rows = data.areas
+      .filter(a => !f || String(a.area).toLowerCase().includes(f))
+      .sort((a, b) => (SEVERITY[b.overall_congestion_level] - SEVERITY[a.overall_congestion_level])
+        || ((b.avg_delay_min_per_km || 0) - (a.avg_delay_min_per_km || 0)));
+    if (rows.length === 0) {
+      scroll.style.display = "none";
+      stateBox.style.display = "block";
+      stateBox.textContent = `No areas match "${areaFilter}".`;
+      return;
+    }
+    stateBox.style.display = "none";
+    scroll.style.display = "block";
+    el("area-rows").innerHTML = rows.map(a => `<tr>
+      <td>${esc(a.area)}</td>
+      <td class="lvl">${levelChip(a.overall_congestion_level)}</td>
+      <td>${metric(a.avg_current_speed_kmh, "")}</td>
+      <td>${metric(a.avg_free_flow_speed_kmh, "")}</td>
+      <td>${metric(a.avg_predicted_speed_kmh, "")}</td>
+      <td>${metric(a.avg_delay_min_per_km, "", 2)}</td>
+      <td>${a.reporting_junction_count}/${a.total_junction_count}</td>
+      <td>${metric(a.sensor_coverage_pct, "%", 0)}</td>
+    </tr>`).join("");
+  }
+  async function loadFeatures() {
+    try {
+      const r = await fetch("/api/features");
+      if (r.status === 503) {
+        const stateBox = el("area-state");
+        stateBox.style.display = "block"; el("area-scroll").style.display = "none";
+        stateBox.textContent = "Area summary not available yet (waiting for the first aggregated poll).";
+        el("area-updated").textContent = ""; el("area-stale").style.display = "none";
+        return;
+      }
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.detail || r.statusText);
+      lastFeatures = data; renderAreas(data);
+    } catch (e) {
+      const stateBox = el("area-state");
+      stateBox.style.display = "block"; el("area-scroll").style.display = "none";
+      stateBox.textContent = `Area summary unavailable: ${e.message}`;
+    }
+  }
+  el("area-filter").addEventListener("input", e => {
+    areaFilter = e.target.value;
+    if (lastFeatures) renderAreas(lastFeatures);
+  });
+
   // ------------------------------------------------------------------ wiring
   function buildHorizonButtons() {
     const box = el("horizons"); box.innerHTML = "Forecast for: ";
@@ -282,7 +398,8 @@
       box.appendChild(b);
     });
     loadForecast();
-    setInterval(async () => { await loadForecast(); if (src && dst) computeRoutes(); }, REFRESH_MS);
+    loadFeatures();
+    setInterval(async () => { await loadForecast(); await loadFeatures(); if (src && dst) computeRoutes(); }, REFRESH_MS);
   }
   init();
 </script>

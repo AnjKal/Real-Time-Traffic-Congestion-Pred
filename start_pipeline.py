@@ -22,9 +22,10 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 import collect_tomtom as ct
+from feature_aggregator import FeatureAggregator, build_total_by_area
 from kafka_consumer import JsonConsumer, RawPollAssembler
 from kafka_producer import JsonProducer
-from kafka_topics import RAW_TOPIC, PREDICTIONS_TOPIC
+from kafka_topics import RAW_TOPIC, PREDICTIONS_TOPIC, FEATURES_TOPIC
 from model_service import ForecastEngine, create_app
 from predict_bangalore import BangaloreForecaster, STEP_MINUTES
 
@@ -147,8 +148,33 @@ def main():
         args.kafka_bootstrap, PREDICTIONS_TOPIC, "traffic-dashboard", engine.accept_prediction,
         kafka_stop, auto_offset_reset="earliest")
 
+    # --- traffic.features: area-wise aggregation (separate consumer groups, does NOT touch the
+    #     DCRNN raw consumer above). It reads raw for free-flow/current and predictions for the
+    #     predicted speed + band, joins them by poll_id, and publishes to traffic.features.
+    features_producer = JsonProducer(args.kafka_bootstrap, FEATURES_TOPIC)
+    aggregator = FeatureAggregator(build_total_by_area(), producer=features_producer)
+
+    def process_features_poll(poll_id, timestamp, readings, marker):
+        return aggregator.handle_raw_batch(poll_id, timestamp, readings, marker)
+
+    def process_features_prediction(message):
+        envelope = aggregator.handle_prediction(message)
+        if envelope is not None:
+            say("[kafka] published area features for poll %s (%d areas, %.1f%% sensor coverage)" % (
+                envelope["poll_id"], envelope["area_count"], envelope["sensor_coverage_pct"]))
+
+    features_assembler = RawPollAssembler(process_features_poll)
+    features_raw_consumer = JsonConsumer(
+        args.kafka_bootstrap, RAW_TOPIC, "traffic-features-raw", features_assembler.handle,
+        kafka_stop, auto_offset_reset="latest", commit_when=lambda handled: bool(handled))
+    features_prediction_consumer = JsonConsumer(
+        args.kafka_bootstrap, PREDICTIONS_TOPIC, "traffic-features", process_features_prediction,
+        kafka_stop, auto_offset_reset="earliest")
+
     raw_consumer.start()
     prediction_consumer.start()
+    features_raw_consumer.start()
+    features_prediction_consumer.start()
 
     import uvicorn
     app_server = uvicorn.Server(uvicorn.Config(create_app(engine=engine), host=args.host,
@@ -202,13 +228,18 @@ def main():
         app_server.should_exit = True
         raw_consumer.close()
         prediction_consumer.close()
+        features_raw_consumer.close()
+        features_prediction_consumer.close()
         if collector_thread is not None:
             collector_thread.join(timeout=5)
         raw_consumer.join(timeout=5)
         prediction_consumer.join(timeout=5)
+        features_raw_consumer.join(timeout=5)
+        features_prediction_consumer.join(timeout=5)
         api_thread.join(timeout=5)
         raw_producer.close()
         prediction_producer.close()
+        features_producer.close()
     say("Stopped.")
     return 0
 

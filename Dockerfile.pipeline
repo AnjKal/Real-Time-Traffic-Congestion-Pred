@@ -2,7 +2,7 @@ FROM python:3.7-slim
 
 WORKDIR /app
 COPY requirements.txt requirements_pipeline.txt ./
-RUN pip install --no-cache-dir --default-timeout=300 --retries=10 -r requirements.txt -r requirements_pipeline.txt
+RUN pip install --no-cache-dir -r requirements.txt -r requirements_pipeline.txt
 COPY . .
 
 ENV KAFKA_BOOTSTRAP_SERVERS=kafka:29092 PYTHONUNBUFFERED=1
