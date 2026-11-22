@@ -60,6 +60,32 @@
     table.area-tbl td.lvl { text-align: left; }
     .lvl-chip { display: inline-flex; align-items: center; gap: 5px; text-transform: capitalize; }
     .lvl-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; border: 1px solid #0003; }
+    #incident-controls { justify-content: flex-start; }
+    #incident-count { display: inline-block; min-width: 18px; margin-left: 4px; padding: 1px 6px;
+      border-radius: 12px; background: #e9eef3; color: #263746; font-size: 12px; font-weight: 700; }
+    #incident-feed-status { font-size: 12.5px; }
+    .incident-panel[hidden] { display: none; }
+    .incident-panel { position: fixed; z-index: 1100; top: 92px; right: 22px; width: min(390px, calc(100vw - 28px));
+      max-height: calc(100vh - 116px); overflow: auto; background: #fff; border: 1px solid #cbd4dd;
+      border-radius: 10px; box-shadow: 0 8px 28px #0003; padding: 14px; }
+    .incident-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      position: sticky; top: -14px; background: #fff; padding: 4px 0 9px; border-bottom: 1px solid #e5e9ed; }
+    .incident-panel-head h2 { font-size: 1.1rem; margin: 0; }
+    #incident-panel-state { color: #66727e; font-size: 13px; padding: 10px 2px; }
+    .incident-card { border: 1px solid #d7dde3; border-left: 4px solid #e3a128; border-radius: 7px;
+      padding: 9px 10px; margin: 9px 0; cursor: pointer; background: #fff; }
+    .incident-card[data-status="active"] { border-left-color: #c0392b; }
+    .incident-card[data-status="recovering"] { border-left-color: #637786; }
+    .incident-card[data-status="resolved"] { border-left-color: #6c9b72; opacity: .82; }
+    .incident-card:focus { outline: 2px solid #1f618d; outline-offset: 1px; }
+    .incident-title { display: flex; justify-content: space-between; gap: 8px; font-weight: 700; }
+    .incident-sub { color: #65717d; font-size: 12px; margin: 3px 0 7px; }
+    .incident-metrics { display: grid; grid-template-columns: 1fr auto; gap: 3px 10px; font-size: 12.5px; }
+    .incident-reasons { color: #515d68; font-size: 12px; margin-top: 7px; line-height: 1.4; }
+    .incident-history-title { font-size: 13px; margin: 14px 0 4px; color: #5b6670; }
+    @media (max-width: 640px) {
+      .incident-panel { top: auto; right: 10px; bottom: 10px; max-height: 70vh; }
+    }
     @media (max-width: 640px) { table.area-tbl th:nth-child(4), table.area-tbl td:nth-child(4) { display: none; } }
   </style>
 </head>
@@ -79,10 +105,28 @@
     <button id="clear">Clear</button>
   </div>
 
+  <div class="ctl" id="incident-controls">
+    <button id="see-incidents" type="button" aria-expanded="false" aria-controls="incident-panel">
+      See incidents <span id="incident-count">0</span>
+    </button>
+    <span class="muted">Map rings show current congestion watches and slowdowns.</span>
+    <span id="incident-feed-status" class="muted"></span>
+  </div>
+
   <div id="error"></div>
   <div id="summary"></div>
 
   <div id="map-box" data-map-var="{{ map_var|e }}" data-junction-vars="{{ junction_vars|tojson|forceescape }}">{{ html|safe }}</div>
+  <section id="incident-panel" class="incident-panel" role="dialog" aria-modal="false"
+           aria-labelledby="incident-panel-title" hidden>
+    <div class="incident-panel-head">
+      <h2 id="incident-panel-title">Traffic incidents</h2>
+      <button id="close-incidents" type="button" aria-label="Close incidents panel">Close</button>
+    </div>
+    <div id="incident-panel-state">Loading incidents&hellip;</div>
+    <div id="incident-list"></div>
+    <div id="incident-history"></div>
+  </section>
 
   <div class="ctl">
     Legend:
@@ -129,7 +173,8 @@
   const GMAPS_DEFAULT = document.getElementById("gmaps").getAttribute("href");
   const REFRESH_MS = 120000;
   const BAND_COLORS = { free: "#2ecc71", moderate: "#f1c40f", heavy: "#e74c3c", unknown: "#95a5a6" };
-  const STALE_MIN = 10;          // flag area data older than this many minutes
+  const STALE_MIN = 10;
+  const INCIDENT_STALE_MIN = 10;
   let areaFilter = "";           // current area-table filter text
   let lastFeatures = null;       // last /api/features payload, for re-filtering without refetch
   const map = window[MAP_VAR];
@@ -138,6 +183,8 @@
          "cdnjs.cloudflare.com): check this computer can reach them, then reload the page.");
     throw new Error("map not loaded");
   }
+  const incidentLayer = L.layerGroup().addTo(map);
+  let lastIncidents = null;
 
   let horizon = null, horizons = [], src = null, dst = null, nextClick = "src";
   let srcMarker = null, dstMarker = null, drawn = [], selectedRank = 1;
@@ -185,7 +232,7 @@
     const warmup = data.warmup_steps
       ? ` · warm-up: ${data.warmup_steps}/${data.input_window_steps || "?"} steps padded` : "";
     const coverage = data.sensor_coverage_pct == null ? "" : ` · ${data.sensor_coverage_pct}% sensor coverage`;
-    const mode = data.mode === "pipeline_test" ? " · 2-minute test cadence" : "";
+    const mode = data.mode === "pipeline_test" ? " · 2-minute polling" : "";
     el("status").textContent = `Forecast for ${when} (+${data.horizon_min} min after latest data, ` +
       `data is ${data.data_age_min == null ? "?" : data.data_age_min} min old)${warmup}${coverage}${mode}`;
   }
@@ -209,6 +256,162 @@
       return data;
     } catch (e) { showBox("error", `Forecast not available: ${e.message}`); return null; }
   }
+
+  // --------------------------------------------------------- congestion events
+  function panelOpen(open) {
+    const panel = el("incident-panel");
+    panel.hidden = !open;
+    el("see-incidents").setAttribute("aria-expanded", open ? "true" : "false");
+  }
+  function humanReason(reason) {
+    const labels = {
+      observed_speed_below_tomtom_free_flow: "Observed speed is below TomTom free-flow",
+      slowdown_persisted_across_polls: "Slowdown persisted across polls",
+      nearby_junctions_also_slow: "Nearby junctions are also slow",
+      forecast_speed_declines_against_tomtom_free_flow: "Forecast speed is below TomTom free-flow",
+      current_speed_fell_since_previous_poll: "Current speed fell since the previous poll",
+      multiple_nearby_junctions_affected: "Several nearby junctions are affected",
+      sensor_coverage_below_70_percent: "Sensor coverage is limited",
+      speeds_returned_above_recovery_threshold: "Speeds returned above the recovery threshold"
+    };
+    return labels[reason] || String(reason || "").replace(/_/g, " ");
+  }
+  function incidentCard(event) {
+    const status = ["watch", "active", "recovering", "resolved"].includes(event.status)
+      ? event.status : "watch";
+    const title = status === "watch" ? "Congestion watch"
+      : status === "recovering" ? "Recovering"
+      : status === "resolved" ? "Recently cleared"
+      : event.event_type === "observed_slowdown" ? "Observed slowdown"
+      : event.event_type === "congestion_build_up" ? "Congestion building" : "Congestion";
+    const reasons = (event.evidence || []).map(humanReason).map(esc).join(" · ");
+    const dataQuality = event.data_quality === "stale" ? " · data stale"
+      : event.data_quality === "limited" ? " · limited data" : "";
+    const forecastText = event.forecast_used && event.avg_predicted_speed_kmh != null
+      ? metric(event.avg_predicted_speed_kmh, " km/h") + " at +" +
+        metric(event.forecast_horizon_min, " min") : "Forecast unavailable";
+    const speedPair = metric(event.avg_current_speed_kmh, " km/h") + " / " +
+      metric(event.avg_free_flow_speed_kmh, " km/h");
+    return '<article class="incident-card" id="incident-card-' + esc(event.event_id) +
+      '" tabindex="0" role="button" data-event-id="' + esc(event.event_id) +
+      '" data-status="' + status + '">' +
+      '<div class="incident-title"><span>' + title + '</span><span>' +
+      esc(event.severity || "low") + '</span></div>' +
+      '<div class="incident-sub">' + esc(event.anchor_name || event.area || "Traffic area") +
+      ' · ' + esc(event.area || "Unknown area") + esc(dataQuality) + '</div>' +
+      '<div class="incident-metrics"><span>State</span><b>' + esc(status) +
+      '</b><span>Current / free-flow</span><b>' + speedPair +
+      '</b><span>Predicted</span><b>' + esc(forecastText) +
+      '</b><span>Affected junctions</span><b>' + metric(event.affected_junction_count) +
+      '</b><span>Signal quality</span><b>' + esc(event.signal_quality || "unknown") +
+      '</b></div><div class="incident-reasons">' +
+      (reasons || "Evidence is still being collected.") + '</div>' +
+      '<div class="incident-sub">First seen ' +
+      (event.first_seen ? esc(new Date(event.first_seen).toLocaleString()) : "unknown") +
+      ' · updated ' +
+      (event.updated_at ? esc(new Date(event.updated_at).toLocaleTimeString()) : "unknown") +
+      '</div></article>';
+  }
+  function renderIncidentPanel(data) {
+    const state = el("incident-panel-state");
+    const list = el("incident-list");
+    const history = el("incident-history");
+    if (!data) {
+      state.textContent = "Waiting for the first complete poll.";
+      list.innerHTML = ""; history.innerHTML = "";
+      return;
+    }
+    const active = Array.isArray(data.active_events) ? data.active_events : [];
+    const resolved = Array.isArray(data.recent_resolved) ? data.recent_resolved.slice(0, 5) : [];
+    state.textContent = active.length
+      ? active.length + " current congestion event" + (active.length === 1 ? "" : "s") +
+        ". Markers show approximate junction areas."
+      : "No current congestion watches or slowdowns.";
+    list.innerHTML = active.length ? active.map(incidentCard).join("") : "";
+    history.innerHTML = resolved.length
+      ? '<div class="incident-history-title">Recently cleared</div>' +
+        resolved.map(incidentCard).join("")
+      : "";
+    document.querySelectorAll(".incident-card[data-event-id]").forEach(card => {
+      const focusEvent = () => focusIncident(card.dataset.eventId);
+      card.addEventListener("click", focusEvent);
+      card.addEventListener("keydown", event => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault(); focusEvent();
+        }
+      });
+    });
+  }
+  function focusIncident(eventId) {
+    const all = (lastIncidents && (lastIncidents.active_events || []).concat(lastIncidents.recent_resolved || [])) || [];
+    const incident = all.find(item => item.event_id === eventId);
+    panelOpen(true);
+    if (incident && incident.lat != null && incident.lon != null) {
+      map.setView([incident.lat, incident.lon], Math.max(map.getZoom(), 13));
+    }
+    window.setTimeout(() => {
+      const card = document.getElementById("incident-card-" + eventId);
+      if (card) card.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }, 40);
+  }
+  function paintIncidentHalos(data) {
+    incidentLayer.clearLayers();
+    for (const event of (data && data.active_events) || []) {
+      const status = event.status || "watch";
+      const color = event.data_quality === "stale" ? "#7d8b96"
+        : status === "active" ? "#c0392b" : status === "recovering" ? "#637786" : "#d99000";
+      const junctions = event.affected_junctions && event.affected_junctions.length
+        ? event.affected_junctions : [{ lat: event.lat, lon: event.lon, name: event.anchor_name }];
+      for (const junction of junctions) {
+        if (junction.lat == null || junction.lon == null) continue;
+        const halo = L.circleMarker([junction.lat, junction.lon], {
+          radius: 14, color, weight: 3, fillColor: color, fillOpacity: 0.10,
+          dashArray: status === "watch" ? "5 4" : null, bubblingMouseEvents: false
+        }).addTo(incidentLayer);
+        halo.bindTooltip((status === "watch" ? "Congestion watch" : "Traffic slowdown") +
+          " near " + esc(junction.name || event.area || "junction"));
+        halo.on("click", () => focusIncident(event.event_id));
+      }
+    }
+  }
+  async function loadIncidents() {
+    try {
+      const r = await fetch("/api/incidents");
+      if (r.status === 503) {
+        lastIncidents = null;
+        el("incident-count").textContent = "0";
+        el("incident-feed-status").textContent = "Waiting for the first 2-minute poll";
+        incidentLayer.clearLayers();
+        renderIncidentPanel(null);
+        return;
+      }
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.detail || r.statusText);
+      lastIncidents = data;
+      const events = Array.isArray(data.active_events) ? data.active_events : [];
+      el("incident-count").textContent = String(events.length);
+      const baseAge = data.data_age_min == null ? 0 : Number(data.data_age_min);
+      const snapshotAge = data.made_at ? Math.max(0, (Date.now() - new Date(data.made_at).getTime()) / 60000) : 0;
+      const age = baseAge + snapshotAge;
+      el("incident-feed-status").textContent =
+        "Updated " + (data.made_at ? new Date(data.made_at).toLocaleTimeString() : "recently") +
+        (age == null ? "" : " · data " + age + " min old" +
+          (age > INCIDENT_STALE_MIN ? " (stale)" : "")) +
+        (data.sensor_coverage_pct == null ? "" : " · " + data.sensor_coverage_pct + "% sensor coverage");
+      paintIncidentHalos(data);
+      renderIncidentPanel(data);
+    } catch (e) {
+      el("incident-feed-status").textContent = "Incident feed unavailable: " + e.message;
+    }
+  }
+  el("see-incidents").addEventListener("click", async () => {
+    panelOpen(el("incident-panel").hidden);
+    if (!el("incident-panel").hidden) await loadIncidents();
+  });
+  el("close-incidents").addEventListener("click", () => panelOpen(false));
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape" && !el("incident-panel").hidden) panelOpen(false);
+  });
 
   // ------------------------------------------------------------------ points
   function setPoint(kind, p) {
@@ -399,7 +602,11 @@
     });
     loadForecast();
     loadFeatures();
-    setInterval(async () => { await loadForecast(); await loadFeatures(); if (src && dst) computeRoutes(); }, REFRESH_MS);
+    loadIncidents();
+    setInterval(async () => {
+      await loadForecast(); await loadFeatures(); await loadIncidents();
+      if (src && dst) computeRoutes();
+    }, REFRESH_MS);
   }
   init();
 </script>

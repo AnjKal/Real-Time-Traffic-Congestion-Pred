@@ -26,6 +26,7 @@ from datetime import datetime, timezone
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 LIVE_DIR = os.path.join(PROJECT_ROOT, "data", "live")
 READINGS_PATH = os.path.join(LIVE_DIR, "readings.csv")
+TOMTOM_ARCHIVE_PATH = os.path.join(LIVE_DIR, "tomtom_readings_archive.csv")
 GRAPH_PATH = os.path.join(PROJECT_ROOT, "data", "sensor_graph", "adj_mx_bangalore.pkl")
 SPOTS_PATH = os.path.join(PROJECT_ROOT, "bangalore_traffic_spots.csv")
 FLOW_URL = "https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json"
@@ -100,7 +101,7 @@ def load_junctions():
 
 # --------------------------------------------------------------------------- the collector
 class Collector(object):
-    def __init__(self, fetch, junctions, out_path=READINGS_PATH, interval_min=2,
+    def __init__(self, fetch, junctions, out_path=TOMTOM_ARCHIVE_PATH, interval_min=2,
                  workers=5, max_retries=2, backoff_s=1.0,
                  max_qps=8.0, sleep_fn=time.sleep, now_fn=time.time, write_csv=True,
                  on_rows=None):
@@ -168,12 +169,12 @@ class Collector(object):
 
         stamp = datetime.fromtimestamp(slot_epoch, tz=timezone.utc).isoformat()
         rows = [r for r in results if r is not None]
-        if rows and self.write_csv:
-            new_file = not os.path.exists(self.out_path)
+        if self.write_csv:
             folder = os.path.dirname(self.out_path)
             if folder and not os.path.isdir(folder):
                 os.makedirs(folder)
-            with open(self.out_path, "a") as f:             # one write per batch
+            new_file = not os.path.exists(self.out_path) or os.path.getsize(self.out_path) == 0
+            with open(self.out_path, "a") as f:             # one append per batch
                 writer = csv.writer(f, lineterminator="\n")
                 if new_file:
                     writer.writerow(COLUMNS)
@@ -239,7 +240,8 @@ def main():
     parser.add_argument("--once", action="store_true", help="one poll now, then exit")
     parser.add_argument("--start-now", action="store_true",
                         help="first poll immediately instead of at the next clock boundary")
-    parser.add_argument("--out", default=READINGS_PATH)
+    parser.add_argument("--out", default=TOMTOM_ARCHIVE_PATH,
+                        help="append raw TomTom readings here (separate from the model archive)")
     args = parser.parse_args()
 
     key = load_api_key()

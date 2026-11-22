@@ -26,6 +26,7 @@ from webapp.osm_graph import PROJECT_ROOT, SPOTS_PATH, get_graph
 
 # Latest area-wise features, written by the feature aggregator to the shared data volume.
 FEATURES_PATH = os.path.join(PROJECT_ROOT, "data", "live", "features.json")
+INCIDENTS_PATH = os.path.join(PROJECT_ROOT, "data", "live", "incidents.json")
 
 MODEL_SERVICE_URL = os.environ.get("MODEL_SERVICE_URL", "http://127.0.0.1:8001")
 TEMPLATES = Jinja2Templates(directory=os.path.join(PROJECT_ROOT, "webapp", "templates"))
@@ -166,6 +167,19 @@ def create_app(model_service_url=None, graph=None, spots=None):
                                      "traffic.features after the first consumed poll.")
         except (ValueError, OSError):
             raise HTTPException(503, "Area features are being written; try again shortly.")
+        return payload
+
+    @app.get("/api/incidents")
+    def incidents():
+        """Latest congestion-event snapshot, written by the Kafka incident agent."""
+        try:
+            with open(INCIDENTS_PATH, "r") as handle:
+                payload = json.load(handle)
+        except FileNotFoundError:
+            raise HTTPException(503, "No congestion events yet. The incident agent publishes "
+                                     "after it joins the first raw poll and forecast.")
+        except (ValueError, OSError):
+            raise HTTPException(503, "Congestion events are being written; try again shortly.")
         return payload
 
     return app

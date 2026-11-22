@@ -25,7 +25,9 @@ import collect_tomtom as ct
 from feature_aggregator import FeatureAggregator, build_total_by_area
 from kafka_consumer import JsonConsumer, RawPollAssembler
 from kafka_producer import JsonProducer
-from kafka_topics import RAW_TOPIC, PREDICTIONS_TOPIC, FEATURES_TOPIC
+from kafka_topics import (RAW_TOPIC, PREDICTIONS_TOPIC, FEATURES_TOPIC,
+                          CONGESTION_EVENTS_TOPIC)
+from incident_agent import IncidentAgent
 from model_service import ForecastEngine, create_app
 from predict_bangalore import BangaloreForecaster, STEP_MINUTES
 
@@ -93,7 +95,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--step-min", type=int, default=2,
-                        help="minutes between readings (2-minute test cadence by default)")
+                        help="minutes between readings (2-minute pipeline test cadence by default)")
     parser.add_argument("--port", type=int, default=8001)
     parser.add_argument("--host", default="127.0.0.1",
                         help="HTTP bind address; use 0.0.0.0 inside Docker")
@@ -171,10 +173,30 @@ def main():
         args.kafka_bootstrap, PREDICTIONS_TOPIC, "traffic-features", process_features_prediction,
         kafka_stop, auto_offset_reset="earliest")
 
+    # --- congestion events: independent groups join raw readings with every forecast horizon.
+    incident_producer = JsonProducer(args.kafka_bootstrap, CONGESTION_EVENTS_TOPIC)
+    incident_agent = IncidentAgent(incident_producer)
+
+    def process_incident_poll(poll_id, timestamp, readings, marker):
+        return incident_agent.handle_raw_batch(poll_id, timestamp, readings, marker)
+
+    def process_incident_prediction(message):
+        incident_agent.handle_prediction(message)
+
+    incident_assembler = RawPollAssembler(process_incident_poll)
+    incident_raw_consumer = JsonConsumer(
+        args.kafka_bootstrap, RAW_TOPIC, "traffic-incidents-raw", incident_assembler.handle,
+        kafka_stop, auto_offset_reset="latest", commit_when=lambda handled: bool(handled))
+    incident_prediction_consumer = JsonConsumer(
+        args.kafka_bootstrap, PREDICTIONS_TOPIC, "traffic-incidents-predictions",
+        process_incident_prediction, kafka_stop, auto_offset_reset="latest")
+
     raw_consumer.start()
     prediction_consumer.start()
     features_raw_consumer.start()
     features_prediction_consumer.start()
+    incident_raw_consumer.start()
+    incident_prediction_consumer.start()
 
     import uvicorn
     app_server = uvicorn.Server(uvicorn.Config(create_app(engine=engine), host=args.host,
@@ -196,9 +218,9 @@ def main():
                 poll_id, RAW_TOPIC, sent))
 
         collector = ct.Collector(
-            ct.make_tomtom_fetch(key), junctions, out_path=args.readings,
+            ct.make_tomtom_fetch(key), junctions, out_path=ct.TOMTOM_ARCHIVE_PATH,
             interval_min=args.step_min, sleep_fn=lambda seconds: stop.wait(seconds),
-            write_csv=False, on_rows=publish_poll)
+            write_csv=True, on_rows=publish_poll)
 
         def collect():
             try:
@@ -211,6 +233,8 @@ def main():
 
         say("Polling TomTom every %d minutes; raw readings go to %s." % (
             args.step_min, RAW_TOPIC))
+        say("Raw TomTom readings are also appended to %s (archive only)." %
+            ct.TOMTOM_ARCHIVE_PATH)
         collector_thread = threading.Thread(target=collect, name="tomtom-collector", daemon=True)
         collector_thread.start()
 
@@ -230,16 +254,21 @@ def main():
         prediction_consumer.close()
         features_raw_consumer.close()
         features_prediction_consumer.close()
+        incident_raw_consumer.close()
+        incident_prediction_consumer.close()
         if collector_thread is not None:
             collector_thread.join(timeout=5)
         raw_consumer.join(timeout=5)
         prediction_consumer.join(timeout=5)
         features_raw_consumer.join(timeout=5)
         features_prediction_consumer.join(timeout=5)
+        incident_raw_consumer.join(timeout=5)
+        incident_prediction_consumer.join(timeout=5)
         api_thread.join(timeout=5)
         raw_producer.close()
         prediction_producer.close()
         features_producer.close()
+        incident_producer.close()
     say("Stopped.")
     return 0
 
