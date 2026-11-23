@@ -83,6 +83,33 @@
     .incident-metrics { display: grid; grid-template-columns: 1fr auto; gap: 3px 10px; font-size: 12.5px; }
     .incident-reasons { color: #515d68; font-size: 12px; margin-top: 7px; line-height: 1.4; }
     .incident-history-title { font-size: 13px; margin: 14px 0 4px; color: #5b6670; }
+    /* Journey intelligence agent: the banner for the route the traveller is actually driving. */
+    #journey-banner[hidden] { display: none; }
+    .journey-card { border: 1px solid #d7dde3; border-left: 5px solid #6c9b72; border-radius: 8px;
+      padding: 11px 13px; margin: 10px 0; background: #fff; }
+    .journey-card[data-action="recommend_switch"] { border-left-color: #c0392b; background: #fdf6f5; }
+    .journey-card[data-action="notify_delay"] { border-left-color: #e3a128; background: #fdfaf3; }
+    .journey-card[data-action="watch"] { border-left-color: #7d8b96; }
+    .journey-card[data-action="arrived"], .journey-card[data-action="expired"] { opacity: .85; }
+    .journey-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+    .journey-title { font-weight: 700; font-size: 15px; }
+    .journey-when { color: #6b7681; font-size: 12px; }
+    .journey-why { margin: 5px 0 8px; line-height: 1.45; }
+    .journey-metrics { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; margin-bottom: 8px; }
+    .journey-metrics b { font-variant-numeric: tabular-nums; }
+    .journey-worse { color: #a93226; }
+    .journey-better { color: #1e8449; }
+    .journey-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .journey-actions button.primary { background: #c0392b; color: #fff; border-color: #c0392b; font-weight: 600; }
+    .journey-trace { margin-top: 9px; font-size: 12px; color: #5a6671; }
+    .journey-trace summary { cursor: pointer; color: #1f618d; }
+    .journey-trace ul { margin: 6px 0 0; padding-left: 18px; }
+    .journey-trace li { line-height: 1.5; }
+    .journey-trace .skipped { color: #86929c; }
+    .journey-trace .failed { color: #a93226; }
+    button.watch { font-size: 12px; padding: 3px 9px; margin-top: 6px; }
+    .route.watched { border-color: #6c9b72; box-shadow: 0 0 0 2px #6c9b7233; }
+    .route .watched-tag { color: #1e8449; font-weight: 600; font-size: 12px; }
     @media (max-width: 640px) {
       .incident-panel { top: auto; right: 10px; bottom: 10px; max-height: 70vh; }
     }
@@ -114,6 +141,8 @@
   </div>
 
   <div id="error"></div>
+  <section id="journey-banner" aria-live="polite" hidden></section>
+  <section id="journey-log" hidden></section>
   <div id="summary"></div>
 
   <div id="map-box" data-map-var="{{ map_var|e }}" data-junction-vars="{{ junction_vars|tojson|forceescape }}">{{ html|safe }}</div>
@@ -188,6 +217,17 @@
 
   let horizon = null, horizons = [], src = null, dst = null, nextClick = "src";
   let srcMarker = null, dstMarker = null, drawn = [], selectedRank = 1;
+
+  // --- journey intelligence agent -------------------------------------------------------
+  // The chosen journey is kept in localStorage, so a refresh (or a closed tab) keeps watching
+  // the route the traveller actually picked instead of snapping back to the best route.
+  const JOURNEY_KEY = "bangalore.journey";
+  const JOURNEY_POLL_MS = 1500;  // the car moves every second, so the banner follows it closely
+  let journey = null;            // { id, rank, src, dst, horizon } for the watched route
+  let journeyBusy = false;
+  let journeyTimer = null;       // fast poll, only while a journey is being driven
+  let carMarker = null;          // the moving car
+  const journeyLayer = L.layerGroup().addTo(map);   // the road actually being driven
 
   const el = id => document.getElementById(id);
   const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -413,6 +453,252 @@
     if (event.key === "Escape" && !el("incident-panel").hidden) panelOpen(false);
   });
 
+  // ------------------------------------------------------------------ journey agent
+  // The agent watches the route the traveller chose and decides, on every forecast, whether it
+  // still suits them. The page only displays what the agent decided; it never decides itself.
+  function storeJourney(value) {
+    journey = value;
+    try {
+      if (value) localStorage.setItem(JOURNEY_KEY, JSON.stringify(value));
+      else localStorage.removeItem(JOURNEY_KEY);
+    } catch (e) { /* private mode: the journey just will not survive a refresh */ }
+  }
+  function restoreJourney() {
+    try { const raw = localStorage.getItem(JOURNEY_KEY); journey = raw ? JSON.parse(raw) : null; }
+    catch (e) { journey = null; }
+    return journey;
+  }
+  // While a car is being driven the agent decides every couple of simulated minutes, which is a
+  // few real seconds, so the page follows it on its own fast timer rather than the 2-minute one.
+  function journeyTimerOn(on) {
+    if (on && !journeyTimer) journeyTimer = setInterval(() => { loadJourney(); }, JOURNEY_POLL_MS);
+    if (!on && journeyTimer) { clearInterval(journeyTimer); journeyTimer = null; }
+  }
+  function renderCar(summary) {
+    const at = summary && summary.car_position;
+    if (!at) {
+      if (carMarker) { map.removeLayer(carMarker); carMarker = null; }
+      return;
+    }
+    const speed = summary.current_speed_kmh;
+    const tip = `Your car${speed == null ? "" : ` &middot; ${speed} km/h`}`;
+    if (!carMarker) {
+      carMarker = L.circleMarker([at.lat, at.lon], { radius: 9, color: "#1b2631", weight: 3,
+          fillColor: "#2e86de", fillOpacity: 1, bubblingMouseEvents: false }).addTo(map);
+    } else {
+      carMarker.setLatLng([at.lat, at.lon]);
+    }
+    carMarker.bindTooltip(tip, { permanent: false, direction: "top" });
+    carMarker.bringToFront();
+  }
+  // After a switch the road being driven is no longer one of the candidates /api/route returns
+  // for the original source, so the journey keeps a line of its own.
+  async function drawJourneyRoute() {
+    journeyLayer.clearLayers();
+    if (!journey) return;
+    try {
+      const r = await fetch(`/api/journey/${encodeURIComponent(journey.id)}/route`);
+      if (!r.ok) return;
+      const data = await r.json();
+      if ((data.polyline || []).length > 1) {
+        L.polyline(data.polyline, { color: "#2e86de", weight: 7, opacity: 0.55,
+            bubblingMouseEvents: false }).addTo(journeyLayer)
+          .bindTooltip("The route you are driving", { sticky: true });
+      }
+    } catch (e) { /* the drawn candidates are still on the map */ }
+  }
+  async function loadSwitchLog() {
+    const box = el("journey-log");
+    if (!journey) { box.hidden = true; box.innerHTML = ""; return; }
+    try {
+      const r = await fetch(`/api/switches?journey_id=${encodeURIComponent(journey.id)}`);
+      if (!r.ok) return;
+      const data = await r.json();
+      if (!data.switch_count) { box.hidden = true; box.innerHTML = ""; return; }
+      const rows = data.switches.map(s => {
+        const realised = s.gain_realised_min === null || s.gain_realised_min === undefined
+          ? "still driving" : `${s.gain_realised_min} min actually saved`;
+        return `<li>At <b>${metric(s.elapsed_min, " min", 0)}</b> in, ` +
+          `${metric(s.position_km_into_trip, " km", 1)} covered: ` +
+          `<b>${metric(s.eta_before_min, " min", 0)}</b> &rarr; ` +
+          `<b>${metric(s.eta_after_min, " min", 0)}</b>, ` +
+          `claimed <b>${metric(s.gain_min, " min", 1)}</b> saved &middot; ${esc(realised)}` +
+          `<br><span class="muted">${esc(s.reason || "")}</span></li>`;
+      }).join("");
+      box.innerHTML = `<div class="journey-card" data-action="watch">
+        <div class="journey-title">Switches on this journey (${data.switch_count})</div>
+        <div class="muted">Claimed ${data.claimed_gain_min} min saved in total` +
+        (data.scored_count ? `; ${data.realised_gain_min} min actually saved over ` +
+          `${data.scored_count} scored switch(es)` : "") + `</div>
+        <ul class="journey-trace" style="margin-top:7px">${rows}</ul></div>`;
+      box.hidden = false;
+    } catch (e) { /* the ledger is on disk either way */ }
+  }
+  const JOURNEY_TITLES = {
+    recommend_switch: "A faster route is available",
+    notify_delay: "Your route is slower than when you chose it",
+    watch: "Watching your route",
+    hold: "Your route still holds",
+    arrived: "Journey finished",
+    expired: "Journey no longer watched" };
+  function humanJourneyReason(reason) {
+    const labels = {
+      journey_registered: "the agent has started watching this route",
+      arrival_later_than_when_route_was_chosen: "you are due to arrive later than when you chose this route",
+      more_of_the_route_is_now_heavy: "more of the route is now heavy traffic",
+      congestion_event_on_remaining_route: "a congestion event is reported on the road ahead",
+      congestion_watch_on_remaining_route: "a congestion watch covers the road ahead",
+      waiting_for_the_alternative_to_hold_another_poll: "waiting for the alternative to stay better for one more update",
+      held_back_by_notification_cooldown: "not repeating advice you just dismissed",
+      confidence_too_low_to_recommend_a_switch: "sensor data is too thin to recommend a switch",
+      agent_tool_unavailable: "the agent could not re-score your route this update",
+      journey_arrived: "you have reached the destination",
+      journey_expired: "past the expected arrival time" };
+    if (labels[reason]) return labels[reason];
+    const saves = /^alternative_saves_(\d+)_min$/.exec(reason);
+    if (saves) return `an alternative saves about ${saves[1]} min`;
+    const polls = /^alternative_better_for_(\d+)_consecutive_polls$/.exec(reason);
+    if (polls) return `that alternative has been better for ${polls[1]} updates in a row`;
+    const raised = /^thresholds_raised_after_(\d+)_dismissal/.exec(reason);
+    if (raised) return `thresholds raised after ${raised[1]} dismissal(s)`;
+    return String(reason).replace(/_/g, " ");
+  }
+  function traceLine(call) {
+    const state = call.skipped ? "skipped" : (call.ok ? "ok" : "failed");
+    const cls = call.skipped ? "skipped" : (call.ok ? "" : "failed");
+    return `<li class="${cls}"><b>${esc(call.tool)}</b> &mdash; ${esc(state)}` +
+      `${call.ms ? ` &middot; ${call.ms} ms` : ""}${call.summary ? ` &middot; ${esc(call.summary)}` : ""}</li>`;
+  }
+  function renderJourney(decision) {
+    const box = el("journey-banner");
+    if (!decision) { box.hidden = true; box.innerHTML = ""; return; }
+    const action = decision.action || "hold";
+    const delta = Number(decision.eta_delta_min);
+    const deltaText = (decision.eta_delta_min === null || decision.eta_delta_min === undefined
+      || Number.isNaN(delta)) ? "N/A" : (delta >= 0 ? `+${delta.toFixed(1)}` : delta.toFixed(1));
+    const deltaCls = Number.isNaN(delta) ? "" : (delta >= 1 ? "journey-worse" : (delta <= -1 ? "journey-better" : ""));
+    const alt = decision.alternative;
+    const when = decision.updated_at ? new Date(decision.updated_at).toLocaleTimeString() : "";
+    const reasons = (decision.evidence || []).map(humanJourneyReason).map(esc).join(" &middot; ");
+    const buttons = [];
+    if (action === "recommend_switch" && alt) {
+      buttons.push(`<button class="primary" id="journey-switch">Switch to the faster route</button>`);
+      buttons.push(`<button id="journey-keep">Keep my route</button>`);
+    } else if (action === "notify_delay") {
+      buttons.push(`<button id="journey-keep">Got it</button>`);
+    }
+    buttons.push(`<button id="journey-stop">End journey</button>`);
+    box.innerHTML = `<div class="journey-card" data-action="${esc(action)}">
+      <div class="journey-head">
+        <span class="journey-title">${esc(JOURNEY_TITLES[action] || "Your journey")}</span>
+        <span class="journey-when">checked ${esc(when)} &middot; confidence ${esc(decision.confidence || "unknown")}</span>
+      </div>
+      <div class="journey-why">${esc(decision.rationale || "")}</div>
+      <div class="journey-metrics">
+        <span>Now <b>${metric(decision.eta_min, " min", 1)}</b></span>
+        <span>When chosen <b>${metric(decision.baseline_eta_min, " min", 1)}</b></span>
+        <span class="${deltaCls}">Difference <b>${deltaText} min</b></span>
+        <span>Left <b>${metric(decision.remaining_km, " km", 1)}</b></span>
+        <span>Travelled <b>${metric(decision.progress_pct, "%", 0)}</b></span>
+        ${alt ? `<span class="journey-better">Alternative <b>${metric(alt.eta_min, " min", 1)}</b> (saves ${metric(alt.gain_min, " min", 1)})</span>` : ""}
+      </div>
+      ${reasons ? `<div class="incident-reasons">${reasons}</div>` : ""}
+      <div class="journey-actions">${buttons.join("")}</div>
+      <details class="journey-trace"><summary>What the agent did on this update</summary>
+        <ul>${(decision.tool_calls || []).map(traceLine).join("")}</ul></details>
+    </div>`;
+    box.hidden = false;
+    const switchButton = el("journey-switch");
+    if (switchButton) switchButton.addEventListener("click", switchJourney);
+    const keepButton = el("journey-keep");
+    if (keepButton) keepButton.addEventListener("click", () => sendFeedback("dismissed"));
+    const stopButton = el("journey-stop");
+    if (stopButton) stopButton.addEventListener("click", stopJourney);
+  }
+  function markWatchedRoute() {
+    document.querySelectorAll(".route").forEach(card => {
+      const watched = !!journey && +card.dataset.rank === journey.rank;
+      card.classList.toggle("watched", watched);
+      const button = card.querySelector("button.watch");
+      if (button) {
+        button.textContent = watched ? "Journey running" : "Start journey";
+        button.disabled = watched || !!journey;
+      }
+    });
+  }
+  async function watchRoute(rank) {
+    if (!src || !dst || horizon == null || journeyBusy) return;
+    journeyBusy = true;
+    try {
+      const r = await fetch("/api/journey", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ src_lat: src.lat, src_lon: src.lon, dst_lat: dst.lat, dst_lon: dst.lon,
+                               horizon_min: horizon, k_paths: 3, rank, simulate: true }) });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.detail || r.statusText);
+      storeJourney({ id: data.journey.journey_id, rank, src, dst, horizon });
+      renderJourney(data.decision);
+      renderCar(data.journey);
+      markWatchedRoute();
+      await drawJourneyRoute();
+      journeyTimerOn(true);
+    } catch (e) { showBox("error", `Could not start this journey: ${e.message}`); }
+    finally { journeyBusy = false; }
+  }
+  async function loadJourney() {
+    if (!journey) { renderJourney(null); renderCar(null); journeyTimerOn(false); return; }
+    try {
+      const r = await fetch(`/api/journey/${encodeURIComponent(journey.id)}`);
+      if (r.status === 404) {
+        storeJourney(null); renderJourney(null); renderCar(null); markWatchedRoute();
+        journeyLayer.clearLayers(); journeyTimerOn(false); loadSwitchLog();
+        return;
+      }
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.detail || r.statusText);
+      renderJourney(data.decision);
+      renderCar(data.journey);
+      journeyTimerOn(true);
+      // The ledger only changes on a switch or on arrival, so it is refreshed on those.
+      const switches = (data.journey || {}).switch_count || 0;
+      const finished = ["arrived", "expired"].includes((data.decision || {}).action);
+      if (switches !== journey.switches || (finished && !journey.finished)) {
+        storeJourney({ ...journey, switches, finished });
+        await loadSwitchLog();
+      }
+    } catch (e) { /* one failed poll must not disturb the map */ }
+  }
+  async function sendFeedback(response) {
+    if (!journey) return;
+    try {
+      await fetch(`/api/journey/${encodeURIComponent(journey.id)}/feedback`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ response }) });
+    } catch (e) { /* the agent keeps its previous preference */ }
+    await loadJourney();
+  }
+  async function switchJourney() {
+    if (!journey) return;
+    try {
+      const r = await fetch(`/api/journey/${encodeURIComponent(journey.id)}/switch`, { method: "POST" });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.detail || r.statusText);
+      // The adopted road becomes the journey's own line; the candidate routes on the map still
+      // belong to the original source and are left alone.
+      storeJourney({ ...journey, switches: (journey.switches || 0) + 1 });
+      await drawJourneyRoute();
+      await loadJourney();
+      await loadSwitchLog();
+    } catch (e) { showBox("error", `Could not switch route: ${e.message}`); }
+  }
+  async function stopJourney() {
+    if (!journey) return;
+    const id = journey.id;
+    storeJourney(null); renderJourney(null); renderCar(null); markWatchedRoute();
+    journeyLayer.clearLayers(); journeyTimerOn(false); loadSwitchLog();
+    try { await fetch(`/api/journey/${encodeURIComponent(id)}`, { method: "DELETE" }); }
+    catch (e) { /* the agent prunes it by itself after the TTL */ }
+  }
+
   // ------------------------------------------------------------------ points
   function setPoint(kind, p) {
     const isSrc = kind === "src";
@@ -459,13 +745,20 @@
       drawn.push({ rank: p.rank, lines });
     }
     map.fitBounds(L.latLngBounds(data.paths[0].segments.flatMap(s => s.geometry)), { padding: [30, 30] });
-    selectedRank = 1;
+    // A watched journey keeps ITS rank selected; with no journey the best route is selected as before.
+    selectedRank = (journey && data.paths.some(p => p.rank === journey.rank)) ? journey.rank : 1;
     el("summary").innerHTML = data.paths.map(p =>
       `<div class="route" data-rank="${p.rank}"><b>${p.rank === 1 ? "&#9733; Best" : "Alt " + (p.rank - 1)}:</b> ` +
       `${p.total_length_km} km, predicted <b>${p.total_time_min} min</b> at +${data.horizon_min} min ` +
       `(avg ${p.mean_speed_kmh} km/h)<br><span class="muted">${p.pct_heavy}% heavy, ${p.pct_moderate}% moderate, ` +
-      `${p.pct_free}% free</span></div>`).join("");
+      `${p.pct_free}% free</span><br><button class="watch" data-rank="${p.rank}" type="button">Start journey</button></div>`).join("");
     document.querySelectorAll(".route").forEach(c => c.addEventListener("click", () => { selectedRank = +c.dataset.rank; restyle(); }));
+    document.querySelectorAll(".route button.watch").forEach(b => b.addEventListener("click", event => {
+      event.stopPropagation();
+      selectedRank = +b.dataset.rank; restyle();
+      watchRoute(+b.dataset.rank);
+    }));
+    markWatchedRoute();
     restyle();
     showInfo(data);
   }
@@ -578,6 +871,7 @@
   el("compute").addEventListener("click", computeRoutes);
   el("clear").addEventListener("click", () => {
     clearRoutes();
+    stopJourney();
     [srcMarker, dstMarker].forEach(m => m && map.removeLayer(m));
     srcMarker = dstMarker = src = dst = null; nextClick = "src";
     el("src-text").textContent = "(click the map)"; el("dst-text").textContent = "(click again)";
@@ -603,9 +897,28 @@
     loadForecast();
     loadFeatures();
     loadIncidents();
+    // A journey survives a refresh: its points, horizon and route are restored, and the agent
+    // is asked what it has decided since the page was last open.
+    const saved = restoreJourney();
+    if (saved && saved.src && saved.dst) {
+      setPoint("src", saved.src); setPoint("dst", saved.dst); nextClick = "src";
+      if (saved.horizon != null && horizons.includes(saved.horizon)) {
+        horizon = saved.horizon;
+        document.querySelectorAll("#horizons button").forEach(
+          b => b.classList.toggle("active", +b.dataset.h === horizon));
+      }
+      await computeRoutes();
+      await loadJourney();
+      await drawJourneyRoute();
+      await loadSwitchLog();
+    }
     setInterval(async () => {
       await loadForecast(); await loadFeatures(); await loadIncidents();
-      if (src && dst) computeRoutes();
+      // Candidate routes are recomputed only when no journey is running: once a car is moving,
+      // routes from the original source are no longer what the traveller is driving, and
+      // redrawing them would keep pulling the map away from the car.
+      if (src && dst && !journey) await computeRoutes();
+      await loadJourney();
     }, REFRESH_MS);
   }
   init();

@@ -9,9 +9,18 @@ Endpoints
     POST /api/route                 {src_lat, src_lon, dst_lat, dst_lon, horizon_min, k_paths}
     GET  /api/presets               one-click source/destination pairs
     GET  /api/features              area-wise aggregated traffic (from traffic.features)
+    GET  /api/incidents             latest congestion-event snapshot (from the incident agent)
+    POST /api/journey               start watching a chosen route (journey intelligence agent)
+    GET  /api/journey/{id}          the agent's latest decision for that journey
+    POST /api/journey/{id}/feedback {"response": "accepted" | "dismissed"}
+    POST /api/journey/{id}/switch   adopt the alternative the agent recommended
+    POST /api/journey/{id}/position {"lat": .., "lon": ..} optional real position feed
+    DELETE /api/journey/{id}        stop watching
+    GET  /api/journeys              every watched journey (agent state, for debugging)
 """
 import json
 import os
+from contextlib import asynccontextmanager
 
 import folium
 import pandas as pd
@@ -22,6 +31,8 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
 from webapp import live_readings, routing
+from webapp.journey_agent import JourneyAgent
+from webapp.journey_runtime import JourneyRuntime
 from webapp.osm_graph import PROJECT_ROOT, SPOTS_PATH, get_graph
 
 # Latest area-wise features, written by the feature aggregator to the shared data volume.
@@ -51,11 +62,49 @@ class RouteRequest(BaseModel):
     k_paths: int = Field(3, ge=1, le=3)
 
 
-def create_app(model_service_url=None, graph=None, spots=None):
-    """graph / spots injectable for tests."""
+class JourneyRequest(RouteRequest):
+    """A route the traveller actually chose; rank is the one they picked on the page."""
+    rank: int = Field(1, ge=1, le=3)
+    label: str = None
+    # Start journey puts a simulated car on the route. minutes_per_second compresses time:
+    # 0.5 is one simulated minute per two real seconds. Set simulate false to watch a route
+    # without a car, in which case progress is estimated from elapsed time instead.
+    simulate: bool = True
+    minutes_per_second: float = Field(None, gt=0, le=10)
+
+
+class FeedbackRequest(BaseModel):
+    response: str = Field(..., pattern="^(accepted|dismissed)$")
+
+
+class PositionRequest(BaseModel):
+    lat: float
+    lon: float
+
+
+def create_app(model_service_url=None, graph=None, spots=None, journey_agent=None):
+    """graph / spots / journey_agent injectable for tests.
+
+    The journey agent runs in this process because deciding whether a better route exists needs
+    the road graph, which only the web app has. Its Kafka consumers/producer are started by
+    JourneyRuntime from the lifespan below, on consumer groups of their own.
+    """
     url = (model_service_url or MODEL_SERVICE_URL).rstrip("/")
     state = {"graph": graph, "spots": spots}
-    app = FastAPI(title="Bangalore congestion forecast")
+    agent = journey_agent or JourneyAgent(graph_provider=lambda: road_graph())
+    runtime = JourneyRuntime(agent, model_service_url=url)
+
+    @asynccontextmanager
+    async def lifespan(_app):
+        runtime.start()
+        try:
+            yield
+        finally:
+            runtime.stop()
+
+    app = FastAPI(title="Bangalore congestion forecast", lifespan=lifespan)
+    app.state.journey_agent = agent
+    app.state.journey_runtime = runtime
 
     def spots_df():
         if state["spots"] is None:
@@ -125,8 +174,9 @@ def create_app(model_service_url=None, graph=None, spots=None):
                         "name": str(s.iloc[i]["name"])}
         return [{"label": label, "src": pt(a), "dst": pt(b)} for label, a, b in PRESET_ROWS]
 
-    @app.post("/api/route")
-    def route(req: RouteRequest):
+    def build_routes(req):
+        """Candidate routes scored for one request. Shared by /api/route and /api/journey so a
+        journey watches exactly the route the page displayed."""
         forecast_json = call_model("/forecast", {"horizon_min": req.horizon_min})
         junctions = forecast_json["nodes"]
         try:
@@ -144,6 +194,11 @@ def create_app(model_service_url=None, graph=None, spots=None):
         scored.sort(key=lambda p: p["total_time_min"])
         for rank, p in enumerate(scored, start=1):
             p["rank"] = rank
+        return forecast_json, scored, free_flow_as_of
+
+    @app.post("/api/route")
+    def route(req: RouteRequest):
+        forecast_json, scored, free_flow_as_of = build_routes(req)
         return {"horizon_min": req.horizon_min, "mode": forecast_json.get("mode"),
                 "warning": forecast_json.get("warning"),
                 "warmup_steps": forecast_json.get("warmup_steps"),
@@ -181,6 +236,132 @@ def create_app(model_service_url=None, graph=None, spots=None):
         except (ValueError, OSError):
             raise HTTPException(503, "Congestion events are being written; try again shortly.")
         return payload
+
+    # ----------------------------------------------------------------- journey agent
+    def _journey_summary(journey):
+        """The journey without its bulky geometry; the page already has the drawn route."""
+        if journey is None:
+            return None
+        skip = ("route_polyline", "route_spine", "spine", "route_nodes", "route_node_cum_m",
+                "pending_alternative")
+        return {key: value for key, value in journey.items() if key not in skip}
+
+    @app.post("/api/journey")
+    def start_journey(req: JourneyRequest):
+        """Start watching the route the traveller chose, and return the agent's first decision.
+
+        The route is rebuilt here with the same code the map uses, so the agent watches exactly
+        what the page displayed rather than a re-derived approximation.
+        """
+        _, scored, _ = build_routes(req)
+        chosen = next((path for path in scored if path["rank"] == req.rank), None)
+        if chosen is None:
+            raise HTTPException(400, "route rank %d was not among the %d routes found"
+                                     % (req.rank, len(scored)))
+        score = {key: value for key, value in chosen.items() if key != "segments"}
+        journey = agent.register({"lat": req.src_lat, "lon": req.src_lon},
+                                 {"lat": req.dst_lat, "lon": req.dst_lon},
+                                 horizon_min=req.horizon_min, segments=chosen["segments"],
+                                 score=score, rank=req.rank, label=req.label)
+        if req.simulate:
+            started = runtime.simulator.start_journey(
+                journey["journey_id"], minutes_per_second=req.minutes_per_second)
+            if started is not None:
+                journey = started
+        return {"journey": _journey_summary(journey),
+                "decision": agent.latest(journey["journey_id"])}
+
+    @app.get("/api/journey/{journey_id}")
+    def journey_state(journey_id: str):
+        """The agent's latest decision for one journey. 404 once it has been forgotten, which
+        tells the page to drop its stored journey."""
+        journey = agent.memory.recall(journey_id)
+        decision = agent.latest(journey_id)
+        if journey is None and decision is None:
+            raise HTTPException(404, "no journey %s is being watched" % journey_id)
+        return {"journey": _journey_summary(journey), "decision": decision,
+                "history": agent.memory.decisions(journey_id, limit=5)}
+
+    @app.get("/api/journey/{journey_id}/route")
+    def journey_route(journey_id: str):
+        """The journey's own route as a line of points, so the page can draw what is being
+        driven. After a switch this is the adopted road, which is no longer one of the
+        candidates /api/route returns for the original source."""
+        journey = agent.memory.recall(journey_id)
+        if journey is None:
+            raise HTTPException(404, "no journey %s is being watched" % journey_id)
+        return {"journey_id": journey_id,
+                "polyline": [[point[0], point[1]] for point in
+                             (journey.get("route_polyline") or [])],
+                "total_length_km": journey.get("total_length_km"),
+                "switch_count": journey.get("switch_count", 0)}
+
+    @app.post("/api/journey/{journey_id}/feedback")
+    def journey_feedback(journey_id: str, req: FeedbackRequest):
+        """Record how the traveller answered. A dismissal raises the agent's own thresholds and
+        starts a cooldown, so repeating the same advice is suppressed."""
+        preferences = agent.feedback(journey_id, req.response)
+        if preferences is None:
+            raise HTTPException(404, "no journey %s is being watched" % journey_id)
+        return {"journey_id": journey_id, "response": req.response, "preferences": preferences}
+
+    @app.post("/api/journey/{journey_id}/switch")
+    def journey_switch(journey_id: str):
+        """Adopt the alternative the agent recommended; its score becomes the new baseline."""
+        decision = agent.latest(journey_id)
+        alternative = (decision or {}).get("alternative")
+        updated = agent.adopt_alternative(journey_id)
+        if updated is None:
+            raise HTTPException(400, "there is no alternative route to switch to right now")
+        return {"journey": _journey_summary(updated),
+                "segments": (alternative or {}).get("segments") or [],
+                "score": (alternative or {}).get("score") or {},
+                "decision": agent.latest(journey_id)}
+
+    @app.post("/api/journey/{journey_id}/position")
+    def journey_position(journey_id: str, req: PositionRequest):
+        """Optional real position feed. Without it the agent estimates progress from elapsed
+        time; with it, the estimate is replaced and nothing else in the policy changes."""
+        journey = agent.memory.recall(journey_id)
+        if journey is None:
+            raise HTTPException(404, "no journey %s is being watched" % journey_id)
+        cum_m = routing.cum_at_position(journey.get("route_polyline") or [], req.lat, req.lon)
+        if cum_m is None:
+            raise HTTPException(400, "this journey has no stored route geometry")
+        agent.memory.update_journey(journey_id, position_cum_m=cum_m)
+        return {"journey_id": journey_id, "position_cum_m": cum_m}
+
+    @app.delete("/api/journey/{journey_id}")
+    def end_journey(journey_id: str):
+        return {"journey_id": journey_id, "ended": bool(agent.end(journey_id))}
+
+    @app.get("/api/journeys")
+    def journeys():
+        """Every watched journey and its latest decision (the agent's own state)."""
+        return agent.snapshot()
+
+    @app.get("/api/switches")
+    def switches(journey_id: str = None):
+        """The switch ledger: every reroute taken, what it claimed to save, and what it saved.
+
+        Rows outlive the journey on purpose. ``gain_min`` is what the agent promised at the
+        moment of the switch; ``gain_realised_min`` is filled in on arrival, so the two columns
+        together say whether the advice was worth taking.
+        """
+        rows = agent.memory.switches(journey_id)
+        claimed = sum(float(row.get("gain_min") or 0.0) for row in rows)
+        realised = [row for row in rows if row.get("gain_realised_min") is not None]
+        return {"switch_count": len(rows),
+                "claimed_gain_min": round(claimed, 1),
+                "scored_count": len(realised),
+                "realised_gain_min": round(sum(float(row["gain_realised_min"])
+                                               for row in realised), 1),
+                "switches": rows}
+
+    @app.get("/api/journey-runtime")
+    def journey_runtime():
+        """How the agent is being fed right now (Kafka or polling), for debugging."""
+        return runtime.status()
 
     return app
 

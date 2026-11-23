@@ -9,3 +9,5 @@ scikit-learn>=1.3
 networkx>=3.2
 folium>=0.15
 osmnx>=2.0,<3
+# Journey agent: consumes traffic.predictions / traffic.congestion_events in this process.
+kafka-python==2.0.2

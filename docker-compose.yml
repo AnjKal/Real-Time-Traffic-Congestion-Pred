@@ -34,7 +34,8 @@ services:
         kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic traffic.predictions --partitions 1 --replication-factor 1
         kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic traffic.features --partitions 1 --replication-factor 1
         kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic traffic.congestion_events --partitions 1 --replication-factor 1 --config cleanup.policy=compact
-        echo "Kafka topics ready: traffic.raw traffic.predictions traffic.features traffic.congestion_events"
+        kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic traffic.journey_events --partitions 1 --replication-factor 1 --config cleanup.policy=compact
+        echo "Kafka topics ready: traffic.raw traffic.predictions traffic.features traffic.congestion_events traffic.journey_events"
 
   pipeline:
     build:
@@ -59,10 +60,14 @@ services:
       context: .
       dockerfile: Dockerfile.webapp
     depends_on:
-      - pipeline
+      kafka-init:
+        condition: service_completed_successfully
+      pipeline:
+        condition: service_started
     restart: unless-stopped
     environment:
       MODEL_SERVICE_URL: http://pipeline:8001
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
     volumes:
       - ./data:/app/data
     ports:
