@@ -151,6 +151,101 @@ There is no agent framework. A plain dictionary of tools, a loop that calls them
 and a record of every call that is published with the decision and shown on the page. Nothing in
 it asks a language model anything; every threshold is a number in `journey_agent.py`.
 
+#### Running it
+
+The agent lives in the web app, so anything that starts the web app starts the agent. It needs two
+things to be useful: the **road graph** (built once) and a **source of forecasts**.
+
+**Option A &mdash; the live stack.** Needs a TomTom API key. Follow
+[First-time setup](#first-time-setup), then:
+
+```powershell
+docker compose up --build -d
+```
+
+The agent consumes `traffic.predictions` and `traffic.congestion_events` and publishes to
+`traffic.journey_events`; `KAFKA_BOOTSTRAP_SERVERS` is set for the `webapp` service in
+`docker-compose.yml`. The first forecast arrives at the next 2-minute boundary, so wait for the
+status line on the page to show a forecast time before starting a journey.
+
+**Option B &mdash; just the agent, no key and no Kafka.** For trying the feature, or developing on
+it, there is a stub that serves the same forecast API with made-up speeds. Everything runs in the
+modern Python (3.10+); no TomTom key, no Kafka, no TensorFlow, no Docker.
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements_webapp.txt
+
+python -m webapp.osm_graph          # once, a few minutes, needs internet
+```
+
+Then two terminals, both with the virtual environment active:
+
+```powershell
+python dev_stub_model_service.py    # terminal 1: forecasts on :8001
+python run_webapp.py                # terminal 2: the page on :8010
+```
+
+With no `KAFKA_BOOTSTRAP_SERVERS` set the agent feeds itself by polling the model service, using
+the same decision code; `GET /api/journey-runtime` will show `"kafka": false`. Decisions are not
+published to Kafka in this mode, which is the only difference.
+
+**Then, on the page:**
+
+1. Pick **Marathahalli -> Silk Board (ORR)** from the one-click routes (or click the map twice).
+2. Press **Compute Routes**. Three routes appear.
+3. Press **Start journey** on one of them. A blue dot starts moving along it.
+4. Watch the banner above the route list. Within a few seconds it will report the journey holding,
+   running late, or a faster route; press **Switch to the faster route** or **Keep my route**.
+5. After a switch, the panel below lists what it claimed to save, and what it actually saved once
+   the journey arrives.
+
+Under the default stub settings the inner ORR junctions slow from the +4 minute forecast onward, so
+a journey started on the fastest route of the ORR preset is offered a reroute saving about 16
+minutes on its third check, roughly six simulated minutes in &mdash; a few seconds of real time at
+the default speed.
+To make a reroute happen somewhere else, jam junctions that only one candidate route passes
+through:
+
+```powershell
+python dev_stub_model_service.py --jam J017,J018 --jam-from 6
+```
+
+**Checking it is working**
+
+| Command | What it tells you |
+| --- | --- |
+| `curl http://localhost:8010/api/journey-runtime` | Kafka or polling, and which forecast horizons it holds |
+| `curl http://localhost:8010/api/journeys` | every watched journey and its latest decision |
+| `curl http://localhost:8010/api/switches` | the switch ledger, claimed against realised |
+| `docker compose logs -f webapp` | the agent's own log lines |
+
+With the live stack, the decisions on the topic:
+
+```powershell
+docker compose exec kafka kafka-console-consumer --bootstrap-server kafka:29092 --topic traffic.journey_events --from-beginning --max-messages 1
+```
+
+**Tuning it.** Every threshold is a named constant at the top of `webapp/journey_agent.py` with a
+comment saying why it exists; see [Operating rules](#operating-rules). The car's speed through
+simulated time is `minutes_per_second` on `POST /api/journey` (default `0.5`, one simulated minute
+per two real seconds). State is in `data/live/journey_state.json` and the ledger in
+`data/live/journey_switches.json`; deleting either is safe and simply forgets.
+
+**If something does not work**
+
+| Symptom | Cause |
+| --- | --- |
+| "The road map has not been built yet" | run `python -m webapp.osm_graph` once |
+| "Cannot reach the model service" | nothing is serving :8001 &mdash; start the pipeline or the stub |
+| `forecast_horizons` is empty | the model service has no forecast yet; with the live stack, wait for the first poll |
+| Banner says watching, never offers a route | normal when the route is running to plan. If it never offers one at all, see [Three honest limits](#three-honest-limits) &mdash; most often every candidate route shares the same junctions and cannot be told apart |
+| `Start journey` is greyed out | one journey at a time; press **End journey** first |
+
+`dev_stub_model_service.py` is a development aid only. It is not referenced by the pipeline, the
+web app or Docker Compose, and deleting it changes nothing.
+
 #### The comparison that makes it work
 
 Minutes-remaining always falls as you drive, so a journey can rot from 32 to 48 minutes without
