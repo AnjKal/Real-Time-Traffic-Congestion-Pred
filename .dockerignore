@@ -1,10 +1,19 @@
 .git
 .env
+
+# Python virtual environments
+venv/
 .venv/
 .venv37/
 .venv-web/
+
+# Python cache
 __pycache__/
 *.py[cod]
+.pytest_cache/
+
+# Runtime data
 data/live/
 data/graph/
 logs/
+docker-compose.local.yml

@@ -124,3 +124,6 @@ data/graph/
 logs/serving_bangalore/
 .venv37/
 .venv-web/
+
+# Local Docker AWS configuration
+docker-compose.local.yml

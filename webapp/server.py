@@ -17,8 +17,22 @@ Endpoints
     POST /api/journey/{id}/position {"lat": .., "lon": ..} optional real position feed
     DELETE /api/journey/{id}        stop watching
     GET  /api/journeys              every watched journey (agent state, for debugging)
+
+    # interaction agent (Phase 4) -- see webapp/interaction_api.py
+    POST   /api/interaction/session        start an empty conversation; issues a session token
+    POST   /api/chat                       ask the interaction agent; issues a session token
+    GET    /api/chat/history               this conversation's messages (Bearer token required)
+    DELETE /api/chat/history               forget this conversation's messages
+    GET    /api/notifications              this conversation's proactive alerts
+    GET    /api/notifications/unread-count unread alert count
+    POST   /api/notifications/read         mark one (or all) alerts read
+    GET    /api/subscriptions              journeys this conversation is subscribed to
+    POST   /api/subscriptions              subscribe explicitly to a watched journey
+    DELETE /api/subscriptions/{journey_id} stop monitoring a journey
+    GET    /api/interaction/status         interaction agent + notification runtime health
 """
 import json
+import logging
 import os
 from contextlib import asynccontextmanager
 
@@ -31,9 +45,12 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
 from webapp import live_readings, routing
+from webapp.interaction_api import build_interaction_services, create_interaction_router
 from webapp.journey_agent import JourneyAgent
 from webapp.journey_runtime import JourneyRuntime
 from webapp.osm_graph import PROJECT_ROOT, SPOTS_PATH, get_graph
+
+LOG = logging.getLogger(__name__)
 
 # Latest area-wise features, written by the feature aggregator to the shared data volume.
 FEATURES_PATH = os.path.join(PROJECT_ROOT, "data", "live", "features.json")
@@ -82,29 +99,51 @@ class PositionRequest(BaseModel):
     lon: float
 
 
-def create_app(model_service_url=None, graph=None, spots=None, journey_agent=None):
+def create_app(model_service_url=None, graph=None, spots=None, journey_agent=None,
+               interaction=None):
     """graph / spots / journey_agent injectable for tests.
 
     The journey agent runs in this process because deciding whether a better route exists needs
     the road graph, which only the web app has. Its Kafka consumers/producer are started by
     JourneyRuntime from the lifespan below, on consumer groups of their own.
+
+    The interaction agent (Phase 4) is wired here too: ``interaction`` is an
+    :class:`~webapp.interaction_api.InteractionServices` built from ``INTERACTION_*`` settings, and
+    may be injected by tests. Building it makes no AWS call and starts nothing; its notification
+    runtime is started/stopped by the lifespan, and a failure to build it must not stop the app --
+    its endpoints simply report unavailable.
     """
     url = (model_service_url or MODEL_SERVICE_URL).rstrip("/")
     state = {"graph": graph, "spots": spots}
     agent = journey_agent or JourneyAgent(graph_provider=lambda: road_graph())
     runtime = JourneyRuntime(agent, model_service_url=url)
 
+    interaction_services = interaction
+    if interaction_services is None:
+        try:
+            interaction_services = build_interaction_services()
+        except Exception:                                         # noqa: BLE001 - never fatal
+            LOG.exception("Could not build the interaction agent; its endpoints will report "
+                          "unavailable and the rest of the app continues")
+            interaction_services = None
+
     @asynccontextmanager
     async def lifespan(_app):
         runtime.start()
+        if interaction_services is not None:
+            interaction_services.start()
         try:
             yield
         finally:
+            if interaction_services is not None:
+                interaction_services.stop()
             runtime.stop()
 
     app = FastAPI(title="Bangalore congestion forecast", lifespan=lifespan)
     app.state.journey_agent = agent
     app.state.journey_runtime = runtime
+    app.state.interaction = interaction_services
+    app.include_router(create_interaction_router(interaction_services))
 
     def spots_df():
         if state["spots"] is None:

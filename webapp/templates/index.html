@@ -114,6 +114,89 @@
       .incident-panel { top: auto; right: 10px; bottom: 10px; max-height: 70vh; }
     }
     @media (max-width: 640px) { table.area-tbl th:nth-child(4), table.area-tbl td:nth-child(4) { display: none; } }
+    /* ==================================================== Traffic Assistant (Phase 5)
+       Floating chatbot + alerts panel + journey monitor for the User Interaction Agent. Every
+       class is prefixed .ta- so it never collides with the map's Bootstrap or the dashboard's own
+       classes. All three overlay the map but start closed, so the map, route cards and journey
+       banner stay unobstructed. */
+    #ta-bar { margin: 8px 0; }
+    #ta-bell .ta-badge { display: inline-block; min-width: 18px; margin-left: 4px; padding: 1px 6px;
+      border-radius: 12px; background: #c0392b; color: #fff; font-size: 12px; font-weight: 700; }
+    #ta-bell .ta-badge.zero { background: #e9eef3; color: #56636f; }
+    #ta-status-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; }
+    .ta-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: none;
+      background: #95a5a6; border: 1px solid #00000026; }
+    .ta-dot.online { background: #2ecc71; }
+    .ta-dot.mock { background: #e3a128; }
+    .ta-dot.offline { background: #c0392b; }
+
+    .ta-panel { position: fixed; z-index: 1300; background: #fff; border: 1px solid #cbd4dd;
+      border-radius: 12px; box-shadow: 0 10px 30px #0003; display: flex; flex-direction: column;
+      overflow: hidden; }
+    .ta-panel[hidden] { display: none; }
+    .ta-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+      border-bottom: 1px solid #e5e9ed; background: #fff; }
+    .ta-head h2 { font-size: 1rem; margin: 0; }
+    .ta-head .ta-actions { margin-left: auto; display: flex; gap: 6px; }
+    .ta-head .ta-actions button { font-size: 12px; padding: 4px 9px; }
+
+    .ta-alerts { left: 22px; top: 92px; width: min(380px, calc(100vw - 28px));
+      max-height: calc(100vh - 116px); }
+    .ta-alerts-body { overflow: auto; padding: 12px; }
+    .ta-subtitle { font-size: 12.5px; text-transform: uppercase; letter-spacing: .04em;
+      color: #6b7681; margin: 16px 0 4px; }
+
+    .ta-alert { border: 1px solid #d7dde3; border-left: 4px solid #7d8b96; border-radius: 8px;
+      padding: 9px 10px; margin: 8px 0; background: #fff; }
+    .ta-alert.unread { cursor: pointer; background: #f3f8ff; }
+    .ta-alert:focus { outline: 2px solid #1f618d; outline-offset: 1px; }
+    .ta-alert[data-sev="high"] { border-left-color: #c0392b; }
+    .ta-alert[data-sev="moderate"] { border-left-color: #e3a128; }
+    .ta-alert[data-sev="low"] { border-left-color: #5d8aa8; }
+    .ta-alert[data-sev="info"] { border-left-color: #7d8b96; }
+    .ta-alert-title { display: flex; justify-content: space-between; gap: 8px; font-weight: 600; font-size: 13.5px; }
+    .ta-sev { font-size: 11px; text-transform: uppercase; letter-spacing: .03em; font-weight: 700; color: #56636f; }
+    .ta-alert-msg { font-size: 12.5px; color: #3b4650; margin-top: 3px; line-height: 1.4; }
+    .ta-alert-when { font-size: 11.5px; color: #86929c; margin-top: 5px; }
+
+    .ta-sub { display: flex; align-items: center; gap: 8px; padding: 7px 2px;
+      border-bottom: 1px solid #eef1f4; font-size: 12.5px; }
+    .ta-sub button { margin-left: auto; font-size: 11.5px; padding: 3px 8px; }
+
+    .ta-chat { right: 22px; bottom: 86px; width: min(400px, calc(100vw - 28px));
+      height: min(620px, calc(100vh - 130px)); }
+    .ta-msgs { flex: 1 1 auto; overflow: auto; padding: 12px; display: flex; flex-direction: column;
+      gap: 9px; background: #f6f8fa; }
+    .ta-msg { max-width: 86%; padding: 8px 11px; border-radius: 12px; font-size: 13.5px;
+      line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .ta-msg.user { align-self: flex-end; background: #1f618d; color: #fff; border-bottom-right-radius: 3px; }
+    .ta-msg.assistant { align-self: flex-start; background: #fff; border: 1px solid #d7dde3;
+      border-bottom-left-radius: 3px; }
+    .ta-msg.meta { align-self: flex-start; background: #fdf3e3; border: 1px solid #e3b872;
+      color: #8a5600; font-size: 12px; max-width: 100%; border-radius: 8px; }
+    .ta-msg.ta-typing { align-self: flex-start; background: #fff; border: 1px solid #d7dde3;
+      color: #6b7681; font-style: italic; }
+    .ta-msg-time { display: block; font-size: 11px; opacity: .7; margin-top: 4px; }
+    .ta-suggests { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 12px 10px; background: #f6f8fa; }
+    .ta-suggests:empty { display: none; }
+    .ta-chip { font-size: 12.5px; border: 1px solid #cbd4dd; background: #fff; border-radius: 14px;
+      padding: 5px 10px; cursor: pointer; }
+    .ta-chip:hover { border-color: #1f618d; color: #1f618d; }
+    .ta-composer { display: flex; gap: 8px; padding: 10px; border-top: 1px solid #e5e9ed; align-items: flex-end; }
+    .ta-composer textarea { flex: 1 1 auto; resize: none; min-height: 38px; max-height: 120px;
+      padding: 8px 10px; border: 1px solid #cbd4dd; border-radius: 9px; font: inherit; font-size: 13.5px; }
+    .ta-send { background: #1f618d; color: #fff; border-color: #1f618d; font-weight: 600; }
+
+    #ta-launcher { position: fixed; right: 22px; bottom: 20px; z-index: 1400; border-radius: 24px;
+      padding: 11px 18px; background: #1f618d; color: #fff; border-color: #1f618d; font-weight: 600;
+      box-shadow: 0 6px 18px #0003; }
+    #ta-launcher:hover { background: #1a5276; }
+
+    @media (max-width: 640px) {
+      .ta-alerts { left: 10px; right: 10px; top: 10px; width: auto; max-height: 62vh; }
+      .ta-chat { left: 10px; right: 10px; bottom: 82px; width: auto; height: min(70vh, 640px); }
+      #ta-launcher { right: 10px; bottom: 12px; padding: 10px 14px; }
+    }
   </style>
 </head>
 <body>
@@ -140,6 +223,15 @@
     <span id="incident-feed-status" class="muted"></span>
   </div>
 
+  <div class="ctl" id="ta-bar">
+    <button id="ta-bell" type="button" aria-expanded="false" aria-controls="ta-alerts"
+            aria-label="Traffic alerts">&#128276; Alerts <span id="ta-badge" class="ta-badge zero">0</span></button>
+    <span id="ta-status-chip" role="status" aria-live="polite">
+      <span class="ta-dot" id="ta-status-dot"></span><span id="ta-status-text">Checking assistant&hellip;</span>
+    </span>
+    <span class="muted">Ask the assistant from the button at the bottom-right.</span>
+  </div>
+
   <div id="error"></div>
   <section id="journey-banner" aria-live="polite" hidden></section>
   <section id="journey-log" hidden></section>
@@ -155,6 +247,48 @@
     <div id="incident-panel-state">Loading incidents&hellip;</div>
     <div id="incident-list"></div>
     <div id="incident-history"></div>
+  </section>
+
+  <section id="ta-alerts" class="ta-panel ta-alerts" role="dialog" aria-modal="false"
+           aria-labelledby="ta-alerts-title" hidden>
+    <div class="ta-head">
+      <h2 id="ta-alerts-title">Traffic alerts</h2>
+      <div class="ta-actions">
+        <button id="ta-mark-all" type="button">Mark all read</button>
+        <button id="ta-alerts-close" type="button" aria-label="Close alerts panel">Close</button>
+      </div>
+    </div>
+    <div class="ta-alerts-body">
+      <div id="ta-alerts-state" class="muted">Loading alerts&hellip;</div>
+      <div id="ta-alerts-list"></div>
+      <h3 class="ta-subtitle">Monitored journeys</h3>
+      <div id="ta-subs-state" class="muted">Loading monitored journeys&hellip;</div>
+      <div id="ta-subs-list"></div>
+    </div>
+  </section>
+
+  <button id="ta-launcher" type="button" aria-expanded="false" aria-controls="ta-chat"
+          aria-label="Open the traffic assistant">&#128172; Ask the assistant</button>
+
+  <section id="ta-chat" class="ta-panel ta-chat" role="dialog" aria-modal="false"
+           aria-labelledby="ta-chat-title" hidden>
+    <div class="ta-head">
+      <span class="ta-dot" id="ta-chat-dot"></span>
+      <h2 id="ta-chat-title">Traffic Assistant</h2>
+      <div class="ta-actions">
+        <button id="ta-new" type="button" title="Start a new conversation">New</button>
+        <button id="ta-clear" type="button" title="Clear this conversation's messages">Clear</button>
+        <button id="ta-chat-close" type="button" aria-label="Close chat">Close</button>
+      </div>
+    </div>
+    <div id="ta-msgs" class="ta-msgs" role="log" aria-live="polite" aria-relevant="additions"></div>
+    <div id="ta-suggests" class="ta-suggests"></div>
+    <form id="ta-form" class="ta-composer" autocomplete="off">
+      <textarea id="ta-input" rows="1" maxlength="2000"
+                placeholder="Ask about incidents, congestion or your journey&hellip;"
+                aria-label="Message the traffic assistant"></textarea>
+      <button id="ta-send" class="ta-send" type="submit">Send</button>
+    </form>
   </section>
 
   <div class="ctl">
@@ -587,6 +721,13 @@
     } else if (action === "notify_delay") {
       buttons.push(`<button id="journey-keep">Got it</button>`);
     }
+    // Explicit "Monitor journey" control: the traveller opts a journey in to proactive alerts.
+    // Nothing is ever auto-subscribed; this is the only place a subscription is created.
+    if (journey && journey.id) {
+      const monitored = taMonitored.has(journey.id);
+      buttons.push(`<button id="journey-monitor" class="${monitored ? "" : "primary"}">` +
+        `${monitored ? "Stop monitoring alerts" : "Monitor journey"}</button>`);
+    }
     buttons.push(`<button id="journey-stop">End journey</button>`);
     box.innerHTML = `<div class="journey-card" data-action="${esc(action)}">
       <div class="journey-head">
@@ -614,6 +755,8 @@
     if (keepButton) keepButton.addEventListener("click", () => sendFeedback("dismissed"));
     const stopButton = el("journey-stop");
     if (stopButton) stopButton.addEventListener("click", stopJourney);
+    const monitorButton = el("journey-monitor");
+    if (monitorButton) monitorButton.addEventListener("click", () => taToggleMonitor(journey.id));
   }
   function markWatchedRoute() {
     document.querySelectorAll(".route").forEach(card => {
@@ -921,6 +1064,470 @@
       await loadJourney();
     }, REFRESH_MS);
   }
+
+  // ================================================================ Traffic Assistant
+  // The floating chatbot, the alerts panel and the journey monitor for the User Interaction
+  // Agent. Every answer is produced by the backend agent over /api/chat -- nothing here decides
+  // anything, it only renders what the agent returns.
+  //
+  // Session credentials (session id + opaque bearer token) are kept in localStorage so a refresh
+  // keeps the same conversation. SECURITY: localStorage is readable by any script on this origin,
+  // so this is fine for a local demo but is NOT production auth. The token is only ever sent in an
+  // Authorization header -- never in a URL, the DOM, a log or an error message -- and no AWS
+  // credential is ever exposed to the browser.
+  const TA_SESSION_KEY = "bangalore.interaction.session";
+  const TA_HISTORY_LIMIT = 50;
+  const TA_NOTIF_LIMIT = 50;
+  const TA_POLL_MS = 30000;         // alerts/status refresh interval (configurable)
+  const TA_SUGGESTED = [
+    "Are there any traffic incidents?",
+    "What are the current congestion conditions?",
+    "What is the status of my journey?",
+    "Is there a faster route?",
+    "Is the traffic monitoring system running?"
+  ];
+  let taSession = null;             // { session_id, session_token } or null
+  let taEnsurePromise = null;       // de-duplicates concurrent session creation
+  let taSendBusy = false;           // no overlapping chat submissions
+  let taTypingEl = null;            // the "typing" bubble
+  let taPollTimer = null;           // the single alerts/status timer
+  let taPollBusy = false;           // no overlapping polls
+  const taAlerts = [];              // last notifications payload rows
+  const taMonitored = new Set();    // journey ids this conversation monitors (used by renderJourney)
+  let taStatusData = null;
+
+  const taTime = iso => { try { return new Date(iso).toLocaleString(); } catch (e) { return ""; } };
+  const taErrShort = e => !e ? "unknown error"
+    : e.kind === "network" ? "the assistant could not be reached"
+    : e.kind === "auth" ? "the conversation credentials were rejected"
+    : (e.message || String(e));
+
+  // ------------------------------------------------------------------ session management
+  function taLoadSession() {
+    try {
+      const raw = localStorage.getItem(TA_SESSION_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.session_id && parsed.session_token) return parsed;
+    } catch (e) { /* corrupt entry: start over */ }
+    return null;
+  }
+  function taSaveSession(value) {
+    taSession = value;
+    try {
+      if (value) localStorage.setItem(TA_SESSION_KEY, JSON.stringify(value));
+      else localStorage.removeItem(TA_SESSION_KEY);
+    } catch (e) { /* private mode: credentials just will not survive a refresh */ }
+  }
+  // Create a session on demand. A session has to exist before alerts or monitoring can be used,
+  // so the page mints one at load (POST /api/interaction/session) rather than forcing a chat.
+  function taEnsureSession(force) {
+    if (taSession && !force) return Promise.resolve(taSession);
+    if (taEnsurePromise) return taEnsurePromise;
+    taEnsurePromise = (async () => {
+      try {
+        const r = await fetch("/api/interaction/session", { method: "POST" });
+        const data = await r.json();
+        if (!r.ok || !data.session_id || !data.session_token) throw new Error("no session");
+        taSaveSession({ session_id: data.session_id, session_token: data.session_token });
+        return taSession;
+      } catch (e) { return null; }
+      finally { taEnsurePromise = null; }
+    })();
+    return taEnsurePromise;
+  }
+  async function taWithAuth(fn) {
+    try { return await fn(); }
+    catch (e) {
+      if (e && e.kind === "auth") {                  // expired/unknown credentials: mint fresh ones
+        taSaveSession(null);
+        await taEnsureSession(true);
+        return await fn();
+      }
+      throw e;
+    }
+  }
+  // One JSON fetch helper. errors carry a `.kind` so the UI can tell a network failure, a rejected
+  // credential and a normal HTTP failure apart without ever echoing a raw response body.
+  async function taApi(path, opts) {
+    const options = opts || {};
+    const headers = {};
+    if (options.body !== undefined) headers["Content-Type"] = "application/json";
+    if (options.auth !== false) {
+      if (!taSession) await taEnsureSession();
+      if (taSession) headers["Authorization"] = "Bearer " + taSession.session_token;
+    }
+    let r;
+    try {
+      r = await fetch(path, { method: options.method || "GET", headers,
+        body: options.body === undefined ? undefined : JSON.stringify(options.body) });
+    } catch (e) { const err = new Error("network"); err.kind = "network"; throw err; }
+    let data = null;
+    try { data = await r.json(); } catch (e) { /* not every failure is JSON */ }
+    if (r.status === 401 || r.status === 403) { const err = new Error("auth"); err.kind = "auth"; err.status = r.status; throw err; }
+    if (!r.ok) {
+      const detail = data && data.detail;
+      const err = new Error(detail ? (typeof detail === "string" ? detail : "request failed") : "server answered " + r.status);
+      err.kind = "http"; err.status = r.status; throw err;
+    }
+    return data;
+  }
+
+  // ------------------------------------------------------------------ chat rendering
+  function taMsgs() { return el("ta-msgs"); }
+  function taScrollDown() { const box = taMsgs(); box.scrollTop = box.scrollHeight; }
+  function taMsgNode(role, content, createdAt) {
+    const node = document.createElement("div");
+    node.className = "ta-msg " + role;
+    const text = document.createElement("div");
+    text.textContent = content == null ? "" : String(content);   // textContent only: never innerHTML
+    node.appendChild(text);
+    if (createdAt) {
+      const when = document.createElement("span");
+      when.className = "ta-msg-time";
+      when.textContent = taTime(createdAt);
+      node.appendChild(when);
+    }
+    return node;
+  }
+  function taAppendMsg(role, content, createdAt) {
+    taMsgs().appendChild(taMsgNode(role, content, createdAt)); taScrollDown();
+  }
+  function taClearMsgs() { taMsgs().textContent = ""; }
+  function taShowTyping() {
+    if (taTypingEl) return;
+    taTypingEl = document.createElement("div");
+    taTypingEl.className = "ta-msg assistant ta-typing";
+    taTypingEl.textContent = "Traffic Assistant is typing\u2026";
+    taMsgs().appendChild(taTypingEl); taScrollDown();
+  }
+  function taHideTyping() { if (taTypingEl) { taTypingEl.remove(); taTypingEl = null; } }
+  function taShowSuggests() {
+    const box = el("ta-suggests"); box.textContent = "";
+    TA_SUGGESTED.forEach(q => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "ta-chip"; b.textContent = q;
+      b.addEventListener("click", () => taSend(q));
+      box.appendChild(b);
+    });
+  }
+  function taHideSuggests() { el("ta-suggests").textContent = ""; }
+  function taNoteDegraded(info) {
+    if (!info || !info.sources) return;
+    const bad = Object.keys(info.sources).filter(
+      name => ["missing", "stale", "unavailable"].indexOf(info.sources[name]) >= 0);
+    if (bad.length) taAppendMsg("meta",
+      "Some live data was unavailable when answering (" + bad.join(", ") +
+      "). The answer reflects that rather than guessing.");
+  }
+  function taErrorText(e) {
+    if (e && e.kind === "network") return "The assistant could not be reached. Check the connection and try again.";
+    if (e && e.kind === "auth") return "This conversation's credentials were rejected. Start a new conversation and try again.";
+    if (e && e.status === 503) return "The assistant is not available on this server right now.";
+    return "The assistant could not answer: " + taErrShort(e);
+  }
+
+  // ------------------------------------------------------------------ chat actions
+  async function taSend(rawText) {
+    const message = String(rawText == null ? "" : rawText).trim();
+    if (!message || taSendBusy) return;             // empty or a double-click: ignored
+    if (message.length > 2000) { taAppendMsg("meta", "That message is too long (max 2000 characters)."); return; }
+    taSendBusy = true;
+    el("ta-send").disabled = true;
+    el("ta-input").value = ""; el("ta-input").style.height = "";
+    taHideSuggests();
+    taAppendMsg("user", message, new Date().toISOString());
+    taShowTyping();
+    try {
+      await taEnsureSession();
+      const body = { message };
+      if (taSession && taSession.session_id) body.session_id = taSession.session_id;
+      const data = await taWithAuth(() => taApi("/api/chat", { method: "POST", body }));
+      if (data && data.session_id && data.session_token) {
+        taSaveSession({ session_id: data.session_id, session_token: data.session_token });
+      }
+      taHideTyping();
+      taAppendMsg("assistant", (data && (data.response || data.text)) || "(no answer)", new Date().toISOString());
+      taNoteDegraded(data && data.data);
+      taRefreshUnread();
+    } catch (e) {
+      taHideTyping();
+      taAppendMsg("meta", taErrorText(e));
+    } finally {
+      taSendBusy = false;
+      el("ta-send").disabled = false;
+    }
+  }
+  async function taLoadHistory() {
+    if (!taSession && !(await taEnsureSession())) { taShowSuggests(); return; }
+    try {
+      const data = await taWithAuth(() => taApi("/api/chat/history?session_id=" +
+        encodeURIComponent(taSession.session_id) + "&limit=" + TA_HISTORY_LIMIT));
+      taClearMsgs();
+      const messages = Array.isArray(data.messages) ? data.messages : [];
+      if (!messages.length) { taShowSuggests(); return; }
+      taHideSuggests();
+      messages.forEach(m => taAppendMsg(m.role === "user" ? "user" : "assistant", m.content, m.created_at));
+    } catch (e) { taShowSuggests(); }
+  }
+  async function taClearConversation() {
+    if (!taSession) return;
+    if (!window.confirm("Clear this conversation's messages? Your alerts and monitored journeys are kept.")) return;
+    try {
+      await taWithAuth(() => taApi("/api/chat/history?session_id=" + encodeURIComponent(taSession.session_id),
+        { method: "DELETE" }));
+      taClearMsgs(); taShowSuggests();
+    } catch (e) { taAppendMsg("meta", taErrorText(e)); }
+  }
+  async function taNewConversation() {
+    if (!window.confirm("Start a new conversation? This clears the current chat and its alerts and monitoring.")) return;
+    taSaveSession(null);
+    await taEnsureSession(true);
+    taClearMsgs(); taShowSuggests();
+    taAlerts.length = 0; taMonitored.clear();
+    renderAlerts(); renderSubs(); taUpdateBadge(0); taRefreshMonitorButton();
+    await Promise.allSettled([taLoadNotifications(), taLoadSubscriptions()]);
+  }
+
+  // ------------------------------------------------------------------ notifications
+  function taSevLabel(sev) {
+    return ({ high: "High", moderate: "Moderate", low: "Low", info: "Info" })[sev] || "Info";
+  }
+  function renderAlerts() {
+    const list = el("ta-alerts-list"), state = el("ta-alerts-state");
+    list.textContent = "";
+    if (!taAlerts.length) {
+      state.hidden = false;
+      state.textContent = "No alerts yet. Alerts appear here for journeys you choose to monitor.";
+      return;
+    }
+    state.hidden = true;
+    taAlerts.forEach(n => {
+      const card = document.createElement("article");
+      card.className = "ta-alert" + (n.read ? "" : " unread");
+      card.dataset.sev = n.severity || "info";
+      card.tabIndex = 0; card.setAttribute("role", "button");
+      const title = document.createElement("div"); title.className = "ta-alert-title";
+      const name = document.createElement("span"); name.textContent = n.title || "Traffic alert";
+      const sev = document.createElement("span"); sev.className = "ta-sev"; sev.textContent = taSevLabel(n.severity);
+      title.appendChild(name); title.appendChild(sev);
+      const msg = document.createElement("div"); msg.className = "ta-alert-msg"; msg.textContent = n.message || "";
+      const when = document.createElement("div"); when.className = "ta-alert-when";
+      when.textContent = (n.read ? "" : "Unread \u00b7 ") + taTime(n.created_at);
+      card.appendChild(title); card.appendChild(msg); card.appendChild(when);
+      const mark = () => taMarkRead(n.notification_id);
+      if (!n.read) card.addEventListener("click", mark);
+      card.addEventListener("keydown", ev => {
+        if ((ev.key === "Enter" || ev.key === " ") && !n.read) { ev.preventDefault(); mark(); }
+      });
+      list.appendChild(card);
+    });
+  }
+  function taUpdateBadge(n) {
+    const count = Number(n) || 0;
+    const badge = el("ta-badge");
+    badge.textContent = String(count);
+    badge.classList.toggle("zero", count === 0);
+  }
+  async function taLoadNotifications() {
+    if (!taSession && !(await taEnsureSession())) { renderAlerts(); return; }
+    try {
+      const data = await taWithAuth(() => taApi("/api/notifications?session_id=" +
+        encodeURIComponent(taSession.session_id) + "&limit=" + TA_NOTIF_LIMIT));
+      const rows = Array.isArray(data.notifications) ? data.notifications : [];
+      taAlerts.length = 0; rows.forEach(r => taAlerts.push(r));
+      taUpdateBadge(typeof data.unread === "number" ? data.unread : rows.filter(r => !r.read).length);
+      renderAlerts();
+    } catch (e) {
+      el("ta-alerts-state").hidden = false;
+      el("ta-alerts-state").textContent = "Alerts unavailable: " + taErrShort(e);
+    }
+  }
+  async function taRefreshUnread() {
+    if (!taSession) return;
+    try {
+      const data = await taWithAuth(() => taApi("/api/notifications/unread-count?session_id=" +
+        encodeURIComponent(taSession.session_id)));
+      taUpdateBadge(typeof data.unread === "number" ? data.unread : 0);
+    } catch (e) { /* the badge keeps its previous value */ }
+  }
+  async function taMarkRead(id) {
+    if (!taSession || !id) return;
+    try {
+      await taWithAuth(() => taApi("/api/notifications/read", { method: "POST",
+        body: { session_id: taSession.session_id, notification_id: id } }));
+      const row = taAlerts.find(x => x.notification_id === id);
+      if (row) row.read = true;
+      renderAlerts(); taRefreshUnread();
+    } catch (e) { /* keep the badge truth the server last gave us */ }
+  }
+  async function taMarkAllRead() {
+    if (!taSession) return;
+    try {
+      await taWithAuth(() => taApi("/api/notifications/read", { method: "POST",
+        body: { session_id: taSession.session_id } }));
+      taAlerts.forEach(n => { n.read = true; });
+      renderAlerts(); taUpdateBadge(0);
+    } catch (e) { /* */ }
+  }
+
+  // ------------------------------------------------------------------ journey monitoring
+  function renderSubs() {
+    const list = el("ta-subs-list"), state = el("ta-subs-state");
+    list.textContent = "";
+    if (!taMonitored.size) {
+      state.hidden = false;
+      state.textContent = "No journeys monitored. Start a journey, then choose Monitor journey.";
+      return;
+    }
+    state.hidden = true;
+    taMonitored.forEach(id => {
+      const row = document.createElement("div"); row.className = "ta-sub";
+      const code = document.createElement("code"); code.textContent = id;
+      const btn = document.createElement("button");
+      btn.type = "button"; btn.textContent = "Stop";
+      btn.setAttribute("aria-label", "Stop monitoring " + id);
+      btn.addEventListener("click", () => taUnsubscribe(id));
+      row.appendChild(code); row.appendChild(btn);
+      list.appendChild(row);
+    });
+  }
+  function taRefreshMonitorButton() {
+    const btn = el("journey-monitor");
+    if (!btn || !journey) return;
+    const on = taMonitored.has(journey.id);
+    btn.textContent = on ? "Stop monitoring alerts" : "Monitor journey";
+    btn.classList.toggle("primary", !on);
+  }
+  async function taLoadSubscriptions() {
+    if (!taSession && !(await taEnsureSession())) { renderSubs(); return; }
+    try {
+      const data = await taWithAuth(() => taApi("/api/subscriptions?session_id=" +
+        encodeURIComponent(taSession.session_id)));
+      taMonitored.clear();
+      (data.subscriptions || []).forEach(s => taMonitored.add(s.journey_id));
+      renderSubs(); taRefreshMonitorButton();
+    } catch (e) {
+      el("ta-subs-state").hidden = false;
+      el("ta-subs-state").textContent = "Monitored journeys unavailable: " + taErrShort(e);
+    }
+  }
+  async function taSubscribe(id) {
+    if (!id) return;
+    if (!taSession && !(await taEnsureSession())) {
+      taAppendMsg("meta", "Could not reach the assistant to monitor that journey."); return;
+    }
+    try {
+      await taWithAuth(() => taApi("/api/subscriptions", { method: "POST",
+        body: { session_id: taSession.session_id, journey_id: id } }));
+      taMonitored.add(id); renderSubs(); taRefreshMonitorButton();
+      if (!el("ta-alerts").hidden) taLoadNotifications();
+    } catch (e) {
+      taAppendMsg("meta", e && e.status === 404
+        ? "That journey is no longer being watched, so it cannot be monitored."
+        : "Could not monitor that journey: " + taErrShort(e));
+    }
+  }
+  async function taUnsubscribe(id) {
+    if (!taSession || !id) return;
+    try {
+      await taWithAuth(() => taApi("/api/subscriptions/" + encodeURIComponent(id) +
+        "?session_id=" + encodeURIComponent(taSession.session_id), { method: "DELETE" }));
+      taMonitored.delete(id); renderSubs(); taRefreshMonitorButton();
+    } catch (e) { /* the subscription row is still on the server; reload will show it */ }
+  }
+  async function taToggleMonitor(id) {
+    if (!id) return;
+    if (taMonitored.has(id)) await taUnsubscribe(id); else await taSubscribe(id);
+  }
+
+  // ------------------------------------------------------------------ agent status
+  function taPaintStatus(data) {
+    taStatusData = data;
+    const dot = el("ta-status-dot"), chatDot = el("ta-chat-dot"), text = el("ta-status-text");
+    if (!data || !data.available) {
+      dot.className = "ta-dot offline"; chatDot.className = "ta-dot offline";
+      text.textContent = "Assistant offline";
+      return;
+    }
+    // Whether the provider is mock or Bedrock is only a label: the UI behaves identically, so a
+    // later switch to Bedrock needs no redesign.
+    const usesBedrock = !!(data.llm && data.llm.uses_bedrock);
+    dot.className = "ta-dot " + (usesBedrock ? "online" : "mock");
+    chatDot.className = "ta-dot " + (usesBedrock ? "online" : "mock");
+    text.textContent = usesBedrock ? "Assistant live" : "Assistant online (mock)";
+  }
+  async function taLoadStatus() {
+    try {
+      const r = await fetch("/api/interaction/status");
+      const data = await r.json();
+      taPaintStatus(data);
+    } catch (e) {
+      taPaintStatus(null);
+    }
+  }
+
+  // ------------------------------------------------------------------ polling (single timer)
+  function taPollStart() {
+    if (taPollTimer) return;                    // never create a second timer
+    taPollTimer = setInterval(taPollTick, TA_POLL_MS);
+  }
+  async function taPollTick() {
+    if (document.hidden) return;                // paused while the tab is hidden
+    if (taPollBusy) return;                     // never overlap a previous cycle
+    taPollBusy = true;
+    try {
+      await taRefreshUnread();
+      if (!el("ta-alerts").hidden) { await taLoadNotifications(); await taLoadSubscriptions(); }
+      await taLoadStatus();
+    } finally { taPollBusy = false; }
+  }
+
+  // ------------------------------------------------------------------ panels + wiring
+  function taOpenChat(open) {
+    el("ta-chat").hidden = !open;
+    el("ta-launcher").setAttribute("aria-expanded", open ? "true" : "false");
+    if (open) {
+      if (typeof panelOpen === "function") panelOpen(false);   // do not fight the incidents panel
+      el("ta-input").focus();
+      taScrollDown();
+    }
+  }
+  function taOpenAlerts(open) {
+    el("ta-alerts").hidden = !open;
+    el("ta-bell").setAttribute("aria-expanded", open ? "true" : "false");
+    if (open) { taLoadNotifications(); taLoadSubscriptions(); }
+    else el("ta-bell").focus();
+  }
+  el("ta-launcher").addEventListener("click", () => taOpenChat(el("ta-chat").hidden));
+  el("ta-chat-close").addEventListener("click", () => { taOpenChat(false); el("ta-launcher").focus(); });
+  el("ta-bell").addEventListener("click", () => taOpenAlerts(el("ta-alerts").hidden));
+  el("ta-alerts-close").addEventListener("click", () => taOpenAlerts(false));
+  el("ta-mark-all").addEventListener("click", taMarkAllRead);
+  el("ta-clear").addEventListener("click", taClearConversation);
+  el("ta-new").addEventListener("click", taNewConversation);
+  el("ta-form").addEventListener("submit", ev => { ev.preventDefault(); taSend(el("ta-input").value); });
+  el("ta-input").addEventListener("keydown", ev => {
+    if (ev.key === "Enter" && !ev.shiftKey && !ev.isComposing) {   // Enter sends, Shift+Enter newlines
+      ev.preventDefault(); el("ta-form").requestSubmit();
+    }
+  });
+  document.addEventListener("keydown", ev => {
+    if (ev.key !== "Escape") return;
+    if (!el("ta-chat").hidden) { taOpenChat(false); el("ta-launcher").focus(); }
+    else if (!el("ta-alerts").hidden) taOpenAlerts(false);
+  });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) taPollTick(); });
+
+  // ------------------------------------------------------------------ start
+  (async function taInit() {
+    taSession = taLoadSession();
+    taShowSuggests();
+    await taEnsureSession();                                     // so alerts/monitoring work before chatting
+    await Promise.allSettled([taLoadStatus(), taLoadHistory(), taLoadSubscriptions(), taRefreshUnread()]);
+    taPollStart();
+  })();
+
   init();
 </script>
 </body>

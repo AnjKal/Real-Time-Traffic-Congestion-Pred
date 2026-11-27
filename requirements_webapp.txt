@@ -11,3 +11,6 @@ folium>=0.15
 osmnx>=2.0,<3
 # Journey agent: consumes traffic.predictions / traffic.congestion_events in this process.
 kafka-python==2.0.2
+# User Interaction Agent (Phase 6): Amazon Bedrock Converse. Only needed when
+# INTERACTION_LLM_PROVIDER=bedrock; credentials come from boto3's own chain, never from here.
+boto3>=1.34
